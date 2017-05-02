@@ -96,6 +96,7 @@ int dataset::read_dataStream(ifstream& fin) {
 }
 
 // Diese Methode liest alle Dokumente von der .txt ein und legt für jedes Wort eine ID + prior-sentilabel an und schreibt dies in die Datenstruktur document (pdocs)
+// Diese Fkt. wird nur einmal am Anfang aufgerufen
 int dataset::analyzeCorpus(vector<string>& docs) {
 
 	mapword2atr::iterator it;
@@ -166,7 +167,7 @@ int dataset::analyzeCorpus(vector<string>& docs) {
 				pdoc->priorSentiLabels[k] = it->second.polarity; // Auch die Polarität/Sentiment wurde bereits ermittelt
 			}
 		}
-		// Während die Variable "docs" also immer noch sehr nah bei dem rohen Input war, übertragen wir dies nun in die schönere Datenstruktur document (pdoc)
+		// Während die Variable "docs" also immer noch sehr nah bei dem rohen Input war, übertragen wir dies nun in die statische Datenstruktur document (pdoc)
 		add_doc(pdoc, i);
 	} 
 	    
@@ -234,7 +235,8 @@ int dataset::read_senti_lexicon(string sentiLexiconFile) {
 		printf("Cannot read file %s!\n", sentiLexiconFile.c_str());
 		return 1;
     }    
-     
+    
+	// Die while Schleife läuft über das ganze mpqa. Zeile für Zeile wird eingelesen
     while (fgets(buff, BUFF_SIZE_SHORT - 1, fin) != NULL) {
 		line = buff;
 		strtokenizer strtok(line, " \t\r\n");
@@ -247,11 +249,11 @@ int dataset::read_senti_lexicon(string sentiLexiconFile) {
 			labID = 0;
 			wordPrior.clear();
 			numSentiLabs = strtok.count_tokens();
-			for (int k = 1; k < strtok.count_tokens(); k++) {
-				val = atof(strtok.token(k).c_str());
+			for (int k = 1; k < strtok.count_tokens(); k++) { // k=1, weil wir das eigentliche Wort auslassen und in der for-Schleife nur die Sentiment-Werte dafür betrachten
+				val = atof(strtok.token(k).c_str()); // Der String wird in ein double "val" konvertiert
 				if (tmp < val) {
 					tmp = val;
-					labID = k-1;
+					labID = k-1; // Die labID gibt also das Sentiment mit dem höchsten Wert an. Bei [0.05 0.9 0.05] würde somit labID=1 sein
 				}
 				wordPrior.push_back(val);
 			}

@@ -67,7 +67,6 @@ int main(int argc, char ** argv) {
 		if(jst.excute_model()) return 1;
 	}
 
-	// Beachte: Hier wird in der Klausel kein jst.execute_model aufgerufen.
 	else if (model_status == MODEL_STATUS_INF) {
 		Inference jst;
 		

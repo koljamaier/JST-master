@@ -96,7 +96,6 @@ int model::init(int argc, char ** argv) {
 
 
 int model::excute_model() {
-
 	pdataset = new dataset(result_dir);
 
 	if (sentiLexFile != "") {
@@ -294,7 +293,7 @@ int model::set_gamma() {
 }
 
 
-//Hier wird einfach nur der Senti-Prior in Beta eingemodellt
+// Hier wird einfach nur der Senti-Prior in Beta eingemodellt
 int model::prior2beta() {
 
 	mapword2atr::iterator wordIt;
@@ -425,7 +424,7 @@ int model::save_model_twords(string filename)
 	            word_prob.second = phi_lzw[l][k][w]; // topic-word probability
 	            words_probs.push_back(word_prob);
 	        }
-    
+			// Die Prob-Wort Paare werden nach Prob sortiert
 		    std::sort(words_probs.begin(), words_probs.end(), sort_pred());
 
 	        fprintf(fout, "Label%d_Topic%d\n", l, k);
@@ -575,6 +574,7 @@ int model::init_estimate() {
     	    l[m][t] = sentiLab;
 
 			// random initialize the topic assginment
+			// dadurch werden also die ersten counts gesetzt
 			topic = (int)(((double)rand() / RAND_MAX) * numTopics);
 			if (topic == numTopics)  topic = numTopics - 1; // to avoid over array boundary
 			z[m][t] = topic;
@@ -603,6 +603,8 @@ int model::estimate() {
 	    printf("Iteration %d ...\n", liter);
 		for (int m = 0; m < numDocs; m++) {
 		    for (int n = 0; n < pdataset->pdocs[m]->length; n++) {
+				// Hier werden auch die counts geupdatet (wie z.B. nlzw)
+				// Auf diesen neuen counts können dann die Parameter estiamtet werden (z.B. compute_phi_lzw())
 				sampling(m, n, sentiLab, topic);
 				l[m][n] = sentiLab;
 				z[m][n] = topic;

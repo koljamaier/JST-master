@@ -190,9 +190,11 @@ int utils::parse_args_inf(int argc, char ** argv, Inference * pmodel_inf) {
 		i++;
 	}
 	if (configfile != "") {
+		// Wie für est lesen wir hier zunächst die Config-Parameter aus der .txt
 		if (read_config_file(configfile)) return 1;
 	}
     
+	// Im Folgenden werden die Werte dann gesetzt
 	if (wordmapfile != "") 
 		pmodel_inf->wordmapfile = wordmapfile;
 		
@@ -238,8 +240,6 @@ int utils::parse_args_inf(int argc, char ** argv, Inference * pmodel_inf) {
 	}
     
 	if (niters > 0) pmodel_inf->niters = niters;
-
-	
 	if (twords > 0) pmodel_inf->twords = twords;
 	if (savestep > 0) pmodel_inf->savestep = savestep;
 	if (updateParaStep > 0) pmodel_inf->updateParaStep = updateParaStep;

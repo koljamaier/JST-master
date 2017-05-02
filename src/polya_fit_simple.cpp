@@ -36,7 +36,7 @@ USA
 
 using namespace std;
 
-
+// Diese Funktion ist im Grunde hauptsächlich für die Hyperparameter-Berechnung da
 int polya_fit_simple(int ** data, double * alpha, int _K, int _nSample) {
 	int K = _K;                 // hyperparameter dimension
 	int nSample = _nSample;     // total number of samples, i.e.documents
