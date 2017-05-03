@@ -61,8 +61,8 @@ public:
     mapword2atr word2atr;
 	mapword2id word2id; 
 	mapid2word id2word; 
-    map<int, int> id2_id;
-	map<int, int> _id2id;
+    map<int, int> id2_id; // (Wort-ID, Index) Eine Map, welche Wort-IDs und deren Index pflegt (für neue docs)
+	map<int, int> _id2id; // Diese Map speichert dagegen (Index, Wort-ID)
 	mapword2prior sentiLex; // <string, int> => <word, polarity>
 	vector<string> newWords;
 
@@ -104,11 +104,11 @@ public:
 
 
 	// from NEW/test documents
-	vector<int> new_nd;
-	vector<vector<int> > new_ndl;
-	vector<vector<vector<int> > > new_ndlz;
-	vector<vector<vector<int> > > new_nlzw;
-	vector<vector<int> > new_nlz;
+	vector<int> new_nd; // number of words in a document d
+	vector<vector<int> > new_ndl; // counter for sentiment-state per document (wieviele counts an Senti-Labels hat also ein gewisses Doc)
+	vector<vector<vector<int> > > new_ndlz; // counter for sentiment-topic-state per document
+	vector<vector<vector<int> > > new_nlzw; // counter for individual word-to-topic-sentiment assignment (wie oft taucht Wort w mit diesem topic&sentiment auf)
+	vector<vector<int> > new_nlz; // counter for sentilabels per topic
 
 	// hyperparameters 
     vector<vector<double> > alpha_lz; // size: (L x T)
@@ -134,7 +134,7 @@ public:
 	int read_newData(string filename);
 	int read_model_setting(string filename);
 	int load_model(string model_name);
-	int prior2beta(); // for incorporating priro information
+	int prior2beta(); // for incorporating prior information
 
 	// compute model parameters
 	void compute_newpi();

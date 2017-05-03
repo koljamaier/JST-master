@@ -48,8 +48,8 @@ public:
 	mapid2word id2word; 
 	mapword2prior sentiLex; // <word, polarity>
 	
-	document ** pdocs; // store training data vocab ID
-	document ** _pdocs; // only use for inference, i.e., for storing the new/test vocab ID
+	document ** pdocs; // store training data vocab ID (in pdocs sind alle Trainings-Dokumente als ID-Wort-Sentiment-Paare gespeichert)
+	document ** _pdocs; // only use for inference, i.e., for storing the new/test vocab ID (Hier werden also die Word-IDs nur bezüglich des neuen Docs gespeichert; unabhängig davon, ob ein Wort schon in den Trainingsdaten gesehen wurde (es bekommt also dennoch eine "neue" Word-ID))
     ifstream fin;
 	
 	string data_dir;
@@ -58,8 +58,8 @@ public:
 
 	int numDocs;
 	int aveDocLength; // average document length
-	int vocabSize;
-	int corpusSize;
+	int vocabSize; // Zählt die Anzahl an unterschiedlichen Worten/Vokabeln über alle Dokumente 
+	int corpusSize; // Gibt die Anzahl an allen Wörter in allen Dokumenten an (auch Duplikate)
 	
 	vector<string> docs; // for buffering dataset
 	vector<string> newWords;

@@ -40,7 +40,7 @@ struct Word_atr {
 };
 
 struct Word_Prior_Attr { 
-	int id; // prior sentiment label
+	int id; // prior sentiment label (Das Label welches also am "wahrscheinlichsten" ist. Falls die labDist=[0.05 0.9 0.05] wäre, dann wäre id=1
 	vector<double> labDist; // label distribution
 };
 

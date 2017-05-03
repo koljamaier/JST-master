@@ -106,13 +106,13 @@ int dataset::analyzeCorpus(vector<string>& docs) {
 		
 	string line;
 	numDocs = docs.size();
-	// Zählt die Anzahl an unterschiedlichen Worten über alle Dokumente
+	// Zählt die Anzahl an unterschiedlichen Worten/Vokabeln über alle Dokumente
 	vocabSize = 0;
 	// Gibt die Anzahl an allen Wörter in allen Dokumenten an (auch Duplikate)
 	corpusSize = 0;
 	aveDocLength = 0; 
 
-  // allocate memory for corpus #test
+  // allocate memory for corpus
 	if (pdocs) {
 		deallocate();
 		pdocs = new document*[numDocs];
@@ -147,11 +147,11 @@ int dataset::analyzeCorpus(vector<string>& docs) {
 			it = word2atr.find(strtok.token(k+1).c_str());
 		
 			if (it == word2atr.end()) { //  i.e., new word; denn .find liefert nur .end() zurück, wenn der Token nicht gefunden wurde
-				pdoc->words[k] = word2atr.size();
+				pdoc->words[k] = word2atr.size(); //(weil es ein neues Wort ist wissen wir, dass es ganz ans Ende muss)
 				sentiIt = sentiLex.find(strtok.token(k+1).c_str()); // check whether the word token can be found in the sentiment lexicon
 				// incorporate sentiment lexicon
 				if (sentiIt != sentiLex.end()) {
-					// Wenn das Wort also im Sentilexicon (mpqa o.ä.) vorkommt, dann setze für das Wort den entspr. Senti-Prior aus diesem Lexicon
+					// Wenn das Wort also im Sentilexicon (mpqa o.ä.) vorkommt, dann setze für das Wort den entspr. Senti-Prior-Label aus diesem Lexicon
 				    priorSenti = sentiIt->second.id;
 				}
 					
@@ -177,11 +177,11 @@ int dataset::analyzeCorpus(vector<string>& docs) {
 	aveDocLength = corpusSize/numDocs;
 
 	if (write_wordmap(result_dir + wordmapfile, word2atr)) {
-		printf("ERROE! Can not read wordmap file %s!\n", wordmapfile.c_str());
+		printf("ERROR! Can not write wordmap file %s!\n", wordmapfile.c_str());
 		return 1;
 	}
 	if (read_wordmap(result_dir + wordmapfile, id2word)) {
-		printf("ERROE! Can not read wordmap file %s!\n", wordmapfile.c_str());
+		printf("ERROR! Can not read wordmap file %s!\n", wordmapfile.c_str());
 		return 1;
 	}
 
@@ -282,9 +282,9 @@ int dataset::write_wordmap(string wordmapfile, mapword2atr &pword2atr) {
     
     mapword2atr::iterator it;
 	// Die erste Zeile in wordmap.txt ist also die Anzahl an Wörtern
-    fprintf(fout, "%d\n", (int)(pword2atr.size()));
+    fprintf(fout, "%d\n", (int)(pword2atr.size())); // wieviele Worte gibt es insgesamt (vocabSize)
     for (it = pword2atr.begin(); it != pword2atr.end(); it++) {
-		// wordmap.txt wird dann gefüllt mit dem Wort und dem Wortindex (an welcher Stelle kommt es zum ersten Mal vor)
+		// wordmap.txt wird dann gefüllt mit dem Wort (it->first) und dem Wortindex (it->second.id) (an welcher Stelle kommt es zum ersten Mal vor)
 	    fprintf(fout, "%s %d\n", (it->first).c_str(), it->second.id);
     }
     
@@ -292,10 +292,12 @@ int dataset::write_wordmap(string wordmapfile, mapword2atr &pword2atr) {
     return 0;
 }
 
-
+// Liest wordmap.txt ein. Die erste Zeile beschreibt numVocSize (Anzahl aller unterschiedlicher Vokabeln)
+// Die folgenden Zeilen beschreiben Paare von Word-String und korrespondierender Word-ID für den gescannten Corpus
+// z.B. "brutal 35"
+// Hier wird eine mapid2word pid2word beschrieben
 int dataset::read_wordmap(string wordmapfile, mapid2word &pid2word) {
     pid2word.clear(); 
-    
     FILE * fin = fopen(wordmapfile.c_str(), "r");
     if (!fin) {
 		printf("Cannot open file %s to read!\n", wordmapfile.c_str());
@@ -317,14 +319,14 @@ int dataset::read_wordmap(string wordmapfile, mapid2word &pid2word) {
 			continue;
 		}
 		
-		pid2word.insert(pair<int, string>(atoi(strtok.token(1).c_str()), strtok.token(0)));
+		pid2word.insert(pair<int, string>(atoi(strtok.token(1).c_str()), strtok.token(0))); // Wort-ID (strtok.token(1)) und Wort (strtok.token(0)) werden gespeichert
     }
     
     fclose(fin);
     return 0;
 }
 
-
+// Hier wird dagegen eine mapword2id erstellt
 int dataset::read_wordmap(string wordmapfile, mapword2id& pword2id) {
     pword2id.clear();
     char buff[BUFF_SIZE_SHORT];

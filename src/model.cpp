@@ -120,10 +120,10 @@ int model::excute_model() {
 		return 1;
 	}
 
-	word2atr = pdataset->word2atr;
-	id2word =  pdataset->id2word;
+	word2atr = pdataset->word2atr; // "access 2984"
+	id2word =  pdataset->id2word; // "2984 access"
 	init_model_parameters();
-	if (init_estimate()) return 1;
+	if (init_estimate()) return 1; // Für die Worte werden zunächst labels zufällig gewählt. Davon ausgehend kann man dann estimate() aufrufen und Gibbs-Samplen
 	if(estimate()) return 1;
 	delete_model_parameters();
 	fin.close();
@@ -544,7 +544,8 @@ int model::save_model_others(string filename) {
     return 0;
 }
 
-
+// Topic und Senti Labels werden für die Worte (zufällig) initialisiert
+// Daraus werden dann die initialen counts erstellt
 int model::init_estimate() {
 
     int sentiLab, topic;
@@ -558,7 +559,7 @@ int model::init_estimate() {
 		l[m].resize(docLength);
 
         for (int t = 0; t < docLength; t++) {
-		    if (pdataset->pdocs[m]->words[t] < 0) {
+		    if (pdataset->pdocs[m]->words[t] < 0) { // Keine Ahnung wann das eintreten soll
 			    printf("ERROE! word token %d has index smaller than 0 at doc[%d][%d]\n", pdataset->pdocs[m]->words[t], m, t);
 				return 1;
 			}
@@ -567,6 +568,7 @@ int model::init_estimate() {
 			    sentiLab = pdataset->pdocs[m]->priorSentiLabels[t]; // incorporate prior information into the model
 
 			}
+			// random initialize the senti assignment
 			else {
 			    sentiLab = (int)(((double)rand() / RAND_MAX) * numSentiLabs);
 			    if (sentiLab == numSentiLabs) sentiLab = numSentiLabs -1;  // to avoid over array boundary
@@ -636,9 +638,9 @@ int model::estimate() {
 	return 0;
 }
 
-
+// Neue Werte für Topic und Sentilabel werden für das Wort n in Document m gesamplet
 int model::sampling(int m, int n, int& sentiLab, int& topic) {
-
+	// Sentiment und Topic aus der letzten "Rudne"
 	sentiLab = l[m][n];
 	topic = z[m][n];
 	int w = pdataset->pdocs[m]->words[n]; // the ID/index of the current word token in vocabulary 
@@ -674,6 +676,8 @@ int model::sampling(int m, int n, int& sentiLab, int& topic) {
 	u = ((double)rand() / RAND_MAX) * p[numSentiLabs-1][numTopics-1];
 
 	// sample sentiment label l, where l \in [0, S-1]
+	// Das Topic wird in der zweiten for-Schleife "gesampled"
+	// (so funktioniert das mit der cumulative method)
 	bool loopBreak=false;
 	for (sentiLab = 0; sentiLab < numSentiLabs; sentiLab++) {   
 		for (topic = 0; topic < numTopics; topic++) { 

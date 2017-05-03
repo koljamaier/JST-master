@@ -107,7 +107,7 @@ int utils::parse_args(int argc, char ** argv, int&  model_status) {
 }
 
 
-
+// In dieser Funktion werden config Parameter wie result-directory und data-directory etc. ausgelesen
 int utils::parse_args_est(int argc, char ** argv, model * pmodel) {
 
     int i = 1;
@@ -191,6 +191,7 @@ int utils::parse_args_inf(int argc, char ** argv, Inference * pmodel_inf) {
 	}
 	if (configfile != "") {
 		// Wie für est lesen wir hier zunächst die Config-Parameter aus der .txt
+		// Beachte: Hier können wir auch die option angeben das bereits bekannte Vokabular (über wordmap.txt) einzubinden
 		if (read_config_file(configfile)) return 1;
 	}
     
@@ -208,11 +209,13 @@ int utils::parse_args_inf(int argc, char ** argv, Inference * pmodel_inf) {
 		return 1;
 	}
 	
+	// Der Pfad des bereits trainierten Modells
 	if (model_dir != "")	{
 		if (model_dir[model_dir.size() - 1] != '/') model_dir += "/";
 		pmodel_inf->model_dir = model_dir;
 	}
 	
+	// Pfad für die (neuen) Daten
 	if (data_dir != "")	{
 		if (data_dir[data_dir.size() - 1] != '/') data_dir += "/";
 		pmodel_inf->data_dir = data_dir;
@@ -222,6 +225,7 @@ int utils::parse_args_inf(int argc, char ** argv, Inference * pmodel_inf) {
 		return 1;
 	}
 	
+	// Pfad für das Ergebnis der Inferenz (auf den neuen Daten)
 	if (result_dir != "")	{
 		if (make_dir(result_dir)) return 1;
 		if (result_dir[result_dir.size() - 1] != '/') result_dir += "/";
@@ -232,6 +236,7 @@ int utils::parse_args_inf(int argc, char ** argv, Inference * pmodel_inf) {
 		return 1;
 	}
 	
+	// Name des trainierten EST Modells! Unter diesem Namen werden die Parameter des trainierten Modells gesucht und geladen z.B. "00100.final.newtassign"
 	if (model_name != "")
 		pmodel_inf->model_name = model_name;
 	else {
@@ -297,7 +302,8 @@ int utils::read_config_file(string filename) {
 				datasetFile = optval;	
 			else if(optstr == "sentiFile") 
 				sentiLexFile = optval;	
-			else if (optstr == "vocabFile") 
+			else if (optstr == "vocabFile")
+				// Beachte: Das bereits bekannte Vokabular kann geladen werden
 				wordmapfile = optval;					
 			else if (optstr == "alpha")
 				alpha = atof(optval.c_str());

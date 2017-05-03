@@ -35,11 +35,12 @@ USA
 using namespace std; 
 
 
-
+// Speichert word-ids und deren prior-senti-label für ein einzelnes Dokument.
+// dataset.cpp speichert dagegen mehrere dieser document ab
 class document {
 
 public:
-	int * words;
+	int * words; // Ein int-array aus word-ids
 	int * priorSentiLabels;
 	string docID;
 	string rawstr;

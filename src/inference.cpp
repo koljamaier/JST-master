@@ -77,7 +77,8 @@ Inference::~Inference(void) {
 
 
 int Inference::init(int argc, char ** argv) {
-
+	// Die ganzen Argumente in test.properties werden eingelesen (wie Pfade für result-directory und data-directory)
+	// Diese Werte werden dann in dieses (this) Modell geschrieben
     if (putils->parse_args_inf(argc, argv, this)) {
 	    return 1;
     }
@@ -97,6 +98,7 @@ int Inference::init(int argc, char ** argv) {
 
 
 // read '.others' file
+// (wie z.B. numTopics, numDocs,...)
 int Inference::read_model_setting(string filename) {
 
 	char buff[BUFF_SIZE_LONG];
@@ -161,6 +163,9 @@ int Inference::read_model_setting(string filename) {
 
 
 // read '.tassign' file of previously trained model
+// Nach dieser Methode ist unser bereits trainiertes Modell vollständig geladen (als dataset) 
+// mit allen Dokumenten auf die trainiert wurde (mittels id-mapping wie in .tassign)
+// und die entsprechenden counts (word,senti,topic) werden wiederhergestellt
 int Inference::load_model(string filename) {
 
     char buff[BUFF_SIZE_LONG];
@@ -172,13 +177,14 @@ int Inference::load_model(string filename) {
 	    return 1;
     }
 
-	pmodelData->pdocs = new document*[numDocs];
+	// Die zuvor ausgelesenen Parameter werden nun in das dataset pmodelData geschrieben
+	pmodelData->pdocs = new document*[numDocs]; // Array an Dokumenten
 	pmodelData->vocabSize= vocabSize;
 	pmodelData->numDocs= numDocs;
 	l.resize(pmodelData->numDocs);
 	z.resize(pmodelData->numDocs);
 
-    for (int m = 0; m < numDocs; m++) {
+    for (int m = 0; m < numDocs; m++) { // lies Zeile für Zeile aus .tassign
 		fgets(buff, BUFF_SIZE_LONG - 1, fin);  // first line - ignore the document ID
 		fgets(buff, BUFF_SIZE_LONG - 1, fin);  // second line - read the sentiment label / topic assignments
 		line = buff; 
@@ -197,6 +203,7 @@ int Inference::load_model(string filename) {
 		        return 1;
 	        }
 	    
+			// Für ein triple wie z.B. 36:2:1 werden nacheinander 1.) Die Wort-id 2.) Das Senti-Label und 3.) Das Topic-Label ausgelesen
 	        words.push_back(atoi(tok.token(0).c_str()));
 			sentiLabs.push_back(atoi(tok.token(1).c_str()));
 	        topics.push_back(atoi(tok.token(2).c_str()));
@@ -255,34 +262,39 @@ int Inference::load_model(string filename) {
 }
 
 
-
+// Nach dieser Methode ist alles vorbereitet für die eigentliche Inferenz
+// Hier werden neue Daten eingelesen und bearbeitet
+// Topic und Senti-Labels werden (zufällig) initialisiert und entsprechende counts gebildet etc.
 int Inference::init_inf() {
 
 	pmodelData = new dataset();
 	pnewData = new dataset(result_dir);
 
-	// Das liest die Parameter von einem (alten?) Modell ein
+	// Das liest die Parameter (.others) von einem alten/trainierten Modell ein (wie z.B. numTopics, numDocs,...)
 	if(read_model_setting(model_dir + model_name + ".others")) {
 	    printf("Throw exception in read_para_setting()!\n");
-		return 1; 
+		return 1;
 	}
 
 	// load model
-	// Man liest die Parameter vom vorherigen Modell
+	// Hier liest man die Wortzuweisungen (.tassign) des trainierten Modells ein
+	// pmodelData wird hier befüllt
 	if(load_model(model_dir + model_name + ".tassign")) {
 	    printf("Throw exception in load_model()!\n");
 		return 1; 
 	}
 
 	// *** TODO move the function to dataset class
+	// In dieser Methode wird der neue Datensatz gelesen, verarbeitet und in pnewData geschrieben
 	if(read_newData(data_dir + datasetFile)) {
 	    printf("Throw exception in read_newData()!\n");
 		return 1; 
 	}
 
+	// Hier werden sämtliche count-parameter initialisiert (z.B. nlzw)
 	if(init_parameters()) {
 	    printf("Throw exception in init_parameters!\n");
-		return 1; 
+		return 1;
 	}
 
 	printf("Testset statistics: \n");
@@ -291,6 +303,7 @@ int Inference::init_inf() {
 	printf("numNew_word = %d\n", (int)(pnewData->newWords.size()));
 
 	// init inf
+	// Hier initialisieren wir die ersten Sentiment-/Topic-Labels. Somit kann dann das "richtige" Sampling starten
 	int sentiLab, topic; 
 	new_z.resize(pnewData->numDocs);
 	new_l.resize(pnewData->numDocs);
@@ -300,8 +313,8 @@ int Inference::init_inf() {
 		new_z[m].resize(docLength);
 		new_l[m].resize(docLength);
 		for (int t = 0; t < docLength; t++) {
-		    if (pnewData->_pdocs[m]->words[t] < 0) {
-			    printf("ERROE! word token %d has index smaller than 0 in doc[%d][%d]\n", pnewData->_pdocs[m]->words[t], m, t);
+		   if (pnewData->_pdocs[m]->words[t] < 0) { // Keine Ahnung wann dieser Fall eintreten könnte
+			    printf("ERROR! word token %d has index smaller than 0 in doc[%d][%d]\n", pnewData->_pdocs[m]->words[t], m, t);
 				return 1;
 			}
 
@@ -309,13 +322,13 @@ int Inference::init_inf() {
 		    if ((pnewData->pdocs[m]->priorSentiLabels[t] > -1) && (pnewData->pdocs[m]->priorSentiLabels[t] < numSentiLabs)) {
 			    sentiLab = pnewData->pdocs[m]->priorSentiLabels[t]; // incorporate prior information into the model  
 			}
-			else {
+			else { // Wenn keine Prior Information (über das Lexicon) vorliegt, so samplen wir zufällig ein Label
 			    sentiLab = (int)(((double)rand() / RAND_MAX) * numSentiLabs);
 			    if (sentiLab == numSentiLabs) sentiLab = numSentiLabs -1;
 			}
 		    new_l[m][t] = sentiLab;
 
-			// sample topic label 
+			// sample topic label
 			topic = (int)(((double)rand() / RAND_MAX) * numTopics);
 			if (topic == numTopics)  topic = numTopics - 1;
 			new_z[m][t] = topic;
@@ -342,6 +355,8 @@ int Inference::inference() {
 		printf("Iteration %d ...\n", liter);
 		for (int m = 0; m < pnewData->numDocs; m++) {
 			for (int n = 0; n < pnewData->pdocs[m]->length; n++) {
+				// Wir samplen für das Wort n in Dokument m
+				// Beachte: Wir samplen hier nur für bereits "gesehene" Worte
 				inf_sampling(m, n, sentiLab, topic);
 				new_l[m][n] = sentiLab; 
 				new_z[m][n] = topic; 
@@ -361,6 +376,7 @@ int Inference::inference() {
     
 	printf("Gibbs sampling completed!\n");
 	printf("Saving the final model!\n");
+	// Diese (hidden) Parameter werden ebenfalls berechnet, wie im Paper beschrieben
 	compute_newpi();
 	compute_newtheta();
 	compute_newphi();
@@ -369,13 +385,16 @@ int Inference::inference() {
 	return 0;
 }
 
-
+// Hier werden sämtliche count-parameters für die 
+// neuen Daten (wie z.B. new_nlzw) initialisiert. 
+// Auch der Prior durch Lambda (Sentilex) wird in Beta einmodelliert
 int Inference::init_parameters() {
 
 	// model counts
+	// new_p wird zur posterior-Berechnung benutzt p(l | d) (das Label eines Dokumentes soll also estimated werden)
 	new_p.resize(numSentiLabs);
 	for (int l = 0; l < numSentiLabs; l++) 	{
-		new_p[l].resize(numTopics);
+		new_p[l].resize(numTopics); // Der Vektor wird hier lediglich "vergrößert"/erweitert
 		for (int z = 0; z < numTopics; z++) {
 		    new_p[l][z] = 0.0;
 		}
@@ -386,7 +405,7 @@ int Inference::init_parameters() {
 	    new_nd[m] = 0;
 	}
 
-	new_ndl.resize(pnewData->numDocs);
+	new_ndl.resize(pnewData->numDocs); 
 	for (int m = 0; m < pnewData->numDocs; m++) {
 		new_ndl[m].resize(numSentiLabs);
 		for (int l = 0; l < numSentiLabs; l++) {
@@ -495,28 +514,32 @@ int Inference::init_parameters() {
 				lambda_lw[l][r] = 1;
 		}
 		// MUST init beta_lzw first before incorporating prior information into beta
-		this->prior2beta();
+		this->prior2beta(); // Hier wird die prior-senti-Info aus dem Lexicon erst richtig einmodelliert und in beta_lzw bzw. betaSum_lz gesetzt
 	}
 
 	return 0;
 }
 
 
-
+// Hier samplen wir für die bekannten Worte/Vokabeln aus den neuen Dokumenten jeweils neue Topic&Sentiment Labels
 int Inference::inf_sampling(int m, int n, int& sentiLab, int& topic) {
 	sentiLab = new_l[m][n];
 	topic = new_z[m][n];
+
 	int w = pnewData->pdocs[m]->words[n];   // word index of trained model
-	int _w = pnewData->_pdocs[m]->words[n]; // word index of test data
+	int _w = pnewData->_pdocs[m]->words[n]; // word index of test data (Achtung: Neue Worte sind hier nicht inbegriffen)
 	double u;
 	
 	new_nd[m]--;
 	new_ndl[m][sentiLab]--;
 	new_ndlz[m][sentiLab][topic]--;
-	new_nlzw[sentiLab][topic][_w]--;
+	new_nlzw[sentiLab][topic][_w]--; // Der count welcher hier durch (das letzte) sampling ermittelt wurde. nlzw[l][k][w] bezieht sich dagegen auf den bereits gelernten Count des trainierten Modells
 	new_nlz[sentiLab][topic]--;
 
     // do multinomial sampling via cumulative method
+	// Das entspricht genau der Sampling-Vorschrift, wie wir sie aus dem Paper unter p(z=j, l=k | w, z^-t, l^-t, alpha, beta, gamma) kennen 
+	// außer dass auch die Counts der neuen Daten einbezogen werden!!!
+	// Hier hat man im Grunde also Online-Inferenz
     for (int l = 0; l < numSentiLabs; l++) {
   	    for (int k = 0; k < numTopics; k++) {
 		    new_p[l][k] = (nlzw[l][k][w] + new_nlzw[l][k][_w] + beta_lzw[l][k][_w]) / (nlz[l][k] + new_nlz[l][k] + betaSum_lz[l][k]) *
@@ -526,6 +549,7 @@ int Inference::inf_sampling(int m, int n, int& sentiLab, int& topic) {
 	}
 
 	// accumulate multinomial parameters
+	// hier werden letztlich "sentiLab" und "topic" gesampled
 	for (int l = 0; l < numSentiLabs; l++) {
 		for (int k = 0; k < numTopics; k++) {
 			if (k==0) {
@@ -560,7 +584,7 @@ int Inference::inf_sampling(int m, int n, int& sentiLab, int& topic) {
     return 0;  
 }
 
-
+// Am Ende dieser Methode wurden die neuen Daten eingelesen und in entsprechende Datenstrukturen abgespeichert (datasets)
 int Inference::read_newData(string filename) {
 
 	mapword2id::iterator it;
@@ -570,10 +594,13 @@ int Inference::read_newData(string filename) {
 	string line;
 	char buff[BUFF_SIZE_LONG];
 
+	// Liest die Vokabeln der alten Trainingsdokumente ein und bildet daraus Maps
 	pmodelData->read_wordmap(model_dir + "wordmap.txt", word2id);  // map word2id
     pmodelData->read_wordmap(model_dir + "wordmap.txt", id2word);  // map id2word
 
 	// read sentiment lexicon file
+	// Beachte: Dabei könnte man hier auch von einem anderen Lexicon als beim Training lesen
+	// So könnte man dann z.B. laufend ein Lexicon updaten
 	if (sentiLexFile != "") {
 		if (pnewData->read_senti_lexicon((sentiLexFile).c_str())) {
 			printf("Error! Cannot read sentiFile %s!\n", sentiLexFile.c_str());
@@ -581,6 +608,7 @@ int Inference::read_newData(string filename) {
 			return 1;
 		}
 		else {
+			// Wir setzen das geladene Sentilexicon in dieses (this) Inferenz-Modell
 			this->sentiLex = pnewData->sentiLex;
 		}
 	}
@@ -591,6 +619,7 @@ int Inference::read_newData(string filename) {
     }
 
     // read test data
+	// Hier lesen wir also die neuen Daten ein
 	ifstream fin;
 	fin.open(filename.c_str(), ifstream::in);
     if(!fin) {
@@ -621,13 +650,14 @@ int Inference::read_newData(string filename) {
 		pnewData->deallocate();
     }
 	else {
+		// Hier legt man fest, wieviele Dokumente in den neuen Daten vorliegen
 		pnewData->pdocs = new document*[pnewData->numDocs];
 	}
     pnewData->_pdocs = new document*[pnewData->numDocs];
 	pnewData->vocabSize = 0;
 	pnewData->corpusSize = 0;
 
-	// process each document
+	// process each document in the new data
 	for (int i = 0; i < pnewData->numDocs; i++) {
 		line = docs.at(i);
 		strtokenizer strtok(line, " \t\r\n"); // \t\r\n are separators
@@ -641,32 +671,37 @@ int Inference::read_newData(string filename) {
 		}
 
 	    pnewData->corpusSize += docLength - 1;
-	    vector<int> doc;
-	    vector<int> _doc;
+	    vector<int> doc; // Hiermit modellieren wir das neue Doc aufgrund bekannter Word-IDs aus den Trainingsdaten
+		// Hier modellieren wir das neue Doc mittels Word-IDs, aber nur bezüglich der neuen Daten! Eine Wort-ID kann also z.B. schon in den Trainingsdaten vorgekommen sein. Dennoch benutzen wir hier eine neue dafür
+		// Entspricht also im Grunde dem Wort Index der Test-Daten
+	    vector<int> _doc; 
+		 
+
 	    vector<int> priorSentiLabels;
 
 	    // process each token in the document
 	    for (int k = 1; k < docLength; k++) {
-			it = word2id.find(strtok.token(k));
-			if (it == word2id.end()) {
+			it = word2id.find(strtok.token(k)); // Wir prüfen, ob das Wort (Token) bereits in den Trainingsdaten vorkommt
+			if (it == word2id.end()) { // ein neues Wort tritt im neuen Test-Datensatz auf (unbekannte Word-ID)
 				pnewData->newWords.push_back(strtok.token(k).c_str());
 			  // word not found, i.e., word unseen in training data
 			  // do anything? (future decision)
+			  // Hier könnte/müsste man z.B. counts für die soeben neu gefundenen Worte erstellen
 			}
-			else {
+			else { // Ansonsten ist das Wort schon bekannt und wir suchen das Vorkommen
 				int _id;
-				_it = id2_id.find(it->second);
-				if (_it == id2_id.end()) {
-				    _id = id2_id.size();
-				    id2_id.insert(pair<int, int>(it->second, _id));
+				_it = id2_id.find(it->second); // Wir suchen nach it->second also der Wort-ID
+				if (_it == id2_id.end()) { // Das Wort ist zwar in den Trainingsdaten, aber die entsprechende Word-ID wurde noch nicht in die id2_id Map eingepflegt
+				    _id = id2_id.size(); // Die letzte Stelle der Map wo die Word-ID eingepflegt wird
+				    id2_id.insert(pair<int, int>(it->second, _id)); // Ein Paar bestehend aus Wort-ID und aktuellem Index der Map wird eingefügt
 				    _id2id.insert(pair<int, int>(_id, it->second));
 				}
-				else {
-				    _id = _it->second;
+				else {	// Die Wort-ID wurde bereits in id2_id eingepflegt
+				    _id = _it->second; // Die Stelle in id2_id unter der die bekannte Word-ID gespeichert wurde
 				}
 
-				doc.push_back(it->second);
-				_doc.push_back(_id);
+				doc.push_back(it->second); // Hier wird die Word-ID gepusht
+				_doc.push_back(_id); // Hier wird der Index/Stelle (in der Map id2_id) der Word-ID gepusht. Dies entspricht wiederum der Word-ID für nur die neuen Dokument
 
 				// 'word2atr' is specific to new/test dataset
 				itatr = word2atr.find(strtok.token(k).c_str());
@@ -674,19 +709,20 @@ int Inference::read_newData(string filename) {
 				if (itatr == word2atr.end()) {
 					sentiIt = sentiLex.find(strtok.token(k).c_str()); // check whether the word token can be found in the sentiment lexicon
 					if (sentiIt != sentiLex.end()) {
-						priorSenti = sentiIt->second.id;
+						priorSenti = sentiIt->second.id; // Gibt zu diesem Wort das Senti-Label
 					}
 					// encode sentiment info into word2atr
-					Word_atr temp = {_id, priorSenti};  // vocabulary index; word polarity
+					// Falls zu dem Wort also ein Eintrag in mpqa vorliegt, so wird dieser hier benutzt
+					Word_atr temp = {_id, priorSenti};  // vocabulary index; word polarity (Beachte: Falls im Lexicon nichts gefunden wurde, so wird -1 übernommen)
 					word2atr.insert(pair<string, Word_atr>(strtok.token(k), temp));
 					priorSentiLabels.push_back(priorSenti);
 				}
-				else {
+				else { // Falls das Wort direkt gefunden wurde, so müssen wir nicht nochmal ins Lexicon schauen, sondern übernehmen direkt die Polarity
 					priorSentiLabels.push_back(itatr->second.polarity);
 				}
 
-			}
-		}
+			} // end else: Für Worte/Token die bereits bekannt sind
+		} // end for: Alle Tokens/Worte des neuen Dokuments sind bearbeitet
 
 		// allocate memory for new doc
 		document * pdoc = new document(doc, priorSentiLabels, "inference");
@@ -698,15 +734,15 @@ int Inference::read_newData(string filename) {
 		// add new doc
 		pnewData->add_doc(pdoc, i);
 		pnewData->_add_doc(_pdoc, i);
-	}
+	} // end for: Alle Dokumente wurden eingelesen & bearbeitet
 
     // update number of new words
-	pnewData->vocabSize = id2_id.size();
+	pnewData->vocabSize = id2_id.size(); // Wir beziehen uns hier also tatsächlich nur auf die bekannten Vokabeln aus den Trainingsdaten. In .others werden diese als "newVocabSize" aufgelistet
 	pnewData->aveDocLength = pnewData->corpusSize / pnewData->numDocs;
 	this->newNumDocs = pnewData->numDocs;
-	this->newVocabSize = pnewData->vocabSize;
+	this->newVocabSize = pnewData->vocabSize; 
 
-    if (newVocabSize == 0) {
+    if (newVocabSize == 0) { // Falls nur neue Worte in den Trainingsdaten auftreten
 	    printf("ERROR! Vocabulary size of test set after removing unseen words is 0! \n");
 		return 1;
 	}
@@ -743,8 +779,9 @@ int Inference::compute_newphi() {
 	for (int l = 0; l < numSentiLabs; l++)  {
 	    for (int z = 0; z < numTopics; z++) {
 			for(int r = 0; r < pnewData->vocabSize; r++) {
-			    it = _id2id.find(r);
+			    it = _id2id.find(r); // Wir schauen an welcher Stelle das Wort in _id2id eingepflegt wurde. Dort bekommen wir über .second die Word-ID für die Trainingsdaten (um die counts nlzw abzurufen)
 				if (it != _id2id.end()) {
+					// Das neue Phi wird fast(!) gleich berechnet; allerdings beziehen wir auch hier die neuen Counts ein!!!
 				    newphi_lzw[l][z][r] = (nlzw[l][z][it->second] + new_nlzw[l][z][r] + beta_lzw[l][z][r]) / (nlz[l][z] + new_nlz[l][z] + betaSum_lz[l][z]);
 				}
 				else {
@@ -887,7 +924,8 @@ int Inference::save_model_newothers(string filename) {
 }
 
 
-
+// Beachte: In dieser Methode werden nur die Worte aus den neuen Daten rausgeschrieben, welche bereits aus den Trainingsdaten bekannt waren.
+// Für alle anderen Worte (andere Worte aus den Trainingsdaten & neue, unbekannte Worte aus den Testdaten) wird nichts eingetragen
 int Inference::save_model_newtwords(string filename) {
 
 	mapid2word::iterator it; // typedef map<int, string> mapid2word
@@ -934,7 +972,9 @@ int Inference::save_model_newtwords(string filename) {
 	return 0;
 }
 
-
+// Diese Methode speichert die neuen Zuweisungen.
+// Beachte: Dabei werden nur für die bereits aus den Trainingsdaten bekannte Worte assignments gemacht.
+// Dennoch kann man gerade daran auch sehen, ob sich eventuell (alte/bekannte) Worte aufgrund der (neuen) Daten in ihren Labels verändert haben
 int Inference::save_model_newtassign(string filename) {
 
 	FILE * fout = fopen(filename.c_str(), "w");
@@ -971,7 +1011,7 @@ int Inference::prior2beta() {
 	}
 
 	// Note: the 'r' index of lambda[j][r] is corresponding to the vocabulary ID.
-	// Therefore the correct prior info can be incorporated to corresponding word cound nlzw,
+	// Therefore the correct prior info can be incorporated to corresponding word count nlzw,
 	// as 'w' is also corresponding to the vocabulary ID.
 	for (int l = 0; l < numSentiLabs; l++) {
 		for (int z = 0; z < numTopics; z++) {
