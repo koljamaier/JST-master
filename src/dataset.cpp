@@ -116,8 +116,6 @@ int dataset::analyzeCorpus(vector<string>& docs) {
 	if (pdocs) {
 		deallocate();
 		pdocs = new document*[numDocs];
-		// test push to new branch from vs hello
-		// kthxbye
     } 
 	else {
 		pdocs = new document*[numDocs];

@@ -160,6 +160,7 @@
     <ClCompile Include="src\utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\cmodel.h" />
     <ClInclude Include="src\cokus.h" />
     <ClInclude Include="src\constants.h" />
     <ClInclude Include="src\dataset.h" />

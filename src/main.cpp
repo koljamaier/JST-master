@@ -76,6 +76,16 @@ int main(int argc, char ** argv) {
 		}
 	}
 
+	// Hier estimaten wir "kontinuierlich" (dJST)
+	else if (model_status == MODEL_STATUS_ESTC) {
+		model jst;
+
+		if (jst.init(argc, argv)) {
+			show_help();
+			return 1;
+		}
+	}
+
 	return 0;
 }
 
