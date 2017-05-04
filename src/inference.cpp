@@ -683,10 +683,11 @@ int Inference::read_newData(string filename) {
 	    for (int k = 1; k < docLength; k++) {
 			it = word2id.find(strtok.token(k)); // Wir prüfen, ob das Wort (Token) bereits in den Trainingsdaten vorkommt
 			if (it == word2id.end()) { // ein neues Wort tritt im neuen Test-Datensatz auf (unbekannte Word-ID)
-				pnewData->newWords.push_back(strtok.token(k).c_str());
+				pnewData->newWords.push_back(strtok.token(k).c_str()); // Wir zählen jedes Vorkommen eines Wortes auch mehrfach (wenn z.B. das neue Wort "inovex" mehrfach auftaucht)
 			  // word not found, i.e., word unseen in training data
 			  // do anything? (future decision)
-			  // Hier könnte/müsste man z.B. counts für die soeben neu gefundenen Worte erstellen
+			  // Hier könnte/müsste man z.B. counts für die soeben neu gefundenen Worte erstellen und in das Vokabular aufnehmen (vorgehen wie in dataset.cpp analyzeCorpus())
+			  // neue Einträge sollten damit für word2atr und word2id entstehen
 			}
 			else { // Ansonsten ist das Wort schon bekannt und wir suchen das Vorkommen
 				int _id;
@@ -737,7 +738,7 @@ int Inference::read_newData(string filename) {
 	} // end for: Alle Dokumente wurden eingelesen & bearbeitet
 
     // update number of new words
-	pnewData->vocabSize = id2_id.size(); // Wir beziehen uns hier also tatsächlich nur auf die bekannten Vokabeln aus den Trainingsdaten. In .others werden diese als "newVocabSize" aufgelistet
+	pnewData->vocabSize = id2_id.size(); // Wir beziehen uns hier also tatsächlich nur auf die bekannten (unterschiedliche) Vokabeln aus den Trainingsdaten. In .others werden diese als "newVocabSize" aufgelistet
 	pnewData->aveDocLength = pnewData->corpusSize / pnewData->numDocs;
 	this->newNumDocs = pnewData->numDocs;
 	this->newVocabSize = pnewData->vocabSize; 

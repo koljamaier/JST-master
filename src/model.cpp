@@ -595,6 +595,7 @@ int model::init_estimate() {
 
 
 // Hier geschieht viel bzgl. der Berechnung (bzw. hier werden alle wichtigen Funktionen dafür gecallt)
+// Das Modell wird auf die Daten trainiert (Parameter Phi,... werden estimated)
 int model::estimate() {
 
 	int sentiLab, topic;

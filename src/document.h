@@ -40,10 +40,10 @@ using namespace std;
 class document {
 
 public:
-	int * words; // Ein int-array aus word-ids
+	int * words; // Ein int-array aus word-ids. Entspricht im Grunde dem Vokabular
 	int * priorSentiLabels;
 	string docID;
-	string rawstr;
+	string rawstr; // Das Dokument als bloﬂer String
 	int length;
 	
 	document() {
