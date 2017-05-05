@@ -40,8 +40,8 @@ using namespace std;
 class document {
 
 public:
-	int * words; // Ein int-array aus word-ids. Entspricht im Grunde dem Vokabular
-	int * priorSentiLabels;
+	int * words; // Ein int-array aus word-ids. Entspricht dem gesamten Dokument (Wörter können auch doppelt vorkommen)
+	int * priorSentiLabels; // Falls ein Prior-Sentiment (aus mpqa) für das Wort vorliegt, so wird dieser als int codiert
 	string docID;
 	string rawstr; // Das Dokument als bloßer String
 	int length;

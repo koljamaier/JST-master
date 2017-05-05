@@ -112,7 +112,7 @@ int dataset::analyzeCorpus(vector<string>& docs) {
 	corpusSize = 0;
 	aveDocLength = 0; 
 
-  // allocate memory for corpus
+  // allocate memory for corpus/dataset pdocs
 	if (pdocs) {
 		deallocate();
 		pdocs = new document*[numDocs];

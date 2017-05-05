@@ -25,8 +25,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
 USA
 
 ***********************************************************************/
-
-/*
+   
 #include "inference.h"
 using namespace std;
 
@@ -672,8 +671,9 @@ int Inference::read_newData(string filename) {
 		}
 
 	    pnewData->corpusSize += docLength - 1;
-	    vector<int> doc; // Hiermit modellieren wir das neue Doc aufgrund bekannter Word-IDs aus den Trainingsdaten
-		// Hier modellieren wir das neue Doc mittels Word-IDs, aber nur bezüglich der neuen Daten! Eine Wort-ID kann also z.B. schon in den Trainingsdaten vorgekommen sein. Dennoch benutzen wir hier eine neue dafür
+		// Hiermit modellieren wir das neue Doc aufgrund bekannter Word-IDs aus den Trainingsdaten
+	    vector<int> doc; 
+		// Hier modellieren wir das neue Doc mittels Word-IDs, aber nur bezüglich der neuen Daten (loc. Voc)! Eine Wort-ID kann also z.B. schon in den Trainingsdaten vorgekommen sein. Dennoch benutzen wir hier eine neue dafür
 		// Entspricht also im Grunde dem Wort Index der Test-Daten
 	    vector<int> _doc; 
 		 
@@ -682,20 +682,48 @@ int Inference::read_newData(string filename) {
 
 	    // process each token in the document
 	    for (int k = 1; k < docLength; k++) {
-			it = word2id.find(strtok.token(k)); // Wir prüfen, ob das Wort (Token) bereits in den Trainingsdaten vorkommt
-			if (it == word2id.end()) { // ein neues Wort tritt im neuen Test-Datensatz auf (unbekannte Word-ID)
-				pnewData->newWords.push_back(strtok.token(k).c_str()); // Wir zählen jedes Vorkommen eines Wortes auch mehrfach (wenn z.B. das neue Wort "inovex" mehrfach auftaucht)
+			int priorSenti = -1;
+			it = word2id.find(strtok.token(k));
+			if (it == word2id.end()) { // neues Wort in den Testdaten (unbekannt im glob. Voc)
+				pnewData->newWords.push_back(strtok.token(k).c_str());
 			  // word not found, i.e., word unseen in training data
-			  // do anything? (future decision)
-			  // Hier könnte/müsste man z.B. counts für die soeben neu gefundenen Worte erstellen und in das Vokabular aufnehmen (vorgehen wie in dataset.cpp analyzeCorpus())
-			  // neue Einträge sollten damit für word2atr und word2id entstehen
-			}
-			else { // Ansonsten ist das Wort schon bekannt und wir suchen das Vorkommen
+			  // neue Einträge sollten damit für word2id, id2word (glob. Voc) und id2_id, _id2id, word2atr (loc. Voc) entstehen
+			  // Die korrespondierenden counts dazu werden später in anderen Methoden gebildet
+			  // Beachte: word2atr ist nicht mit dem globalen Mapping zu verwechseln! Hier gilt es nur für das lokale Vokabular
+				int new_glob_id = word2id.size();
+				sentiIt = sentiLex.find(strtok.token(k).c_str());
+				if (sentiIt != sentiLex.end()) {
+					priorSenti = sentiIt->second.id;
+				}
+
+				// pflege neues Wort in glob. Voc. ein
+				word2id.insert(pair<string, int>(strtok.token(k), new_glob_id));
+				id2word.insert(pair<int, string>(new_glob_id, strtok.token(k)));
+
+
+				// insert sentiment info into loc. word2atr
+				Word_atr temp = { word2atr.size(), priorSenti };  // vocabulary index; word polarity
+				word2atr.insert(pair<string, Word_atr>(strtok.token(k), temp));
+				priorSentiLabels.push_back(priorSenti);
+
+				// Pflege neues Wort in loc. Voc. ein
 				int _id;
-				_it = id2_id.find(it->second); // Wir suchen nach it->second also der glob. Wort-ID
-				if (_it == id2_id.end()) { // Das Wort ist zwar in den Trainingsdaten, aber die entsprechende Word-ID wurde noch nicht in die id2_id Map eingepflegt
+				_id = id2_id.size(); // Die letzte Stelle der lok. Map wo die Word-ID eingepflegt wird
+				id2_id.insert(pair<int, int>(new_glob_id, _id)); // Ein Paar bestehend aus glob. Wort-ID und lok. Wort-ID der Map wird eingefügt
+				_id2id.insert(pair<int, int>(_id, new_glob_id)); // Ein Paar bestehend aus lok. Wort-ID und glob. Wort-ID der Map wird eingefügt
+
+				int new_loc_id = id2_id.size();
+				doc.push_back(new_glob_id);
+				_doc.push_back(new_loc_id);
+
+				// TODO: Die neue wordmap rausschreiben!
+			}
+			else { // Ansonsten ist das Wort schon im glob. Voc bekannt und wir suchen das Vorkommen
+				int _id;
+				_it = id2_id.find(it->second); // Wir suchen nach der glob. Word-ID
+				if (_it == id2_id.end()) { // Das Wort ist zwar im glob. Voc. bekannt, aber die entsprechende Word-ID wurde noch nicht in die lokale id2_id Map eingepflegt
 				    _id = id2_id.size(); // Die letzte Stelle der Map wo die Word-ID eingepflegt wird
-				    id2_id.insert(pair<int, int>(it->second, _id)); // Ein Paar bestehend aus Wort-ID und aktuellem Index der Map wird eingefügt
+				    id2_id.insert(pair<int, int>(it->second, _id)); // Ein Paar bestehend aus glob. Wort-ID und loc. Wort-ID der Map wird eingefügt
 				    _id2id.insert(pair<int, int>(_id, it->second));
 				}
 				else {	// Die Wort-ID wurde bereits in id2_id eingepflegt
@@ -705,7 +733,7 @@ int Inference::read_newData(string filename) {
 				doc.push_back(it->second); // Hier wird die Word-ID gepusht
 				_doc.push_back(_id); // Hier wird der Index/Stelle (in der Map id2_id) der Word-ID gepusht. Dies entspricht wiederum der Word-ID für nur die neuen Dokument
 
-				// 'word2atr' is specific to new/test dataset
+				// 'word2atr' is specific to new/test dataset (es gilt also nur für loc. Voc.!!!)
 				itatr = word2atr.find(strtok.token(k).c_str());
 				int priorSenti = -1;
 				if (itatr == word2atr.end()) {
@@ -748,6 +776,16 @@ int Inference::read_newData(string filename) {
 	    printf("ERROR! Vocabulary size of test set after removing unseen words is 0! \n");
 		return 1;
 	}
+
+	// Neue Wordmap speichern
+	/*if (write_wordmap(result_dir + wordmapfile, word2atr)) {
+		printf("ERROR! Can not write wordmap file %s!\n", wordmapfile.c_str());
+		return 1;
+	}
+	if (read_wordmap(result_dir + wordmapfile, id2word)) {
+		printf("ERROR! Can not read wordmap file %s!\n", wordmapfile.c_str());
+		return 1;
+	}*/
 
 	return 0;
 }
@@ -1027,4 +1065,3 @@ int Inference::prior2beta() {
 
 	return 0;
 }
-*/

@@ -152,6 +152,7 @@
   <ItemGroup>
     <ClCompile Include="src\dataset.cpp" />
     <ClCompile Include="src\inference.cpp" />
+    <ClCompile Include="src\inference1.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\math_func.cpp" />
     <ClCompile Include="src\model.cpp" />
@@ -165,6 +166,7 @@
     <ClInclude Include="src\constants.h" />
     <ClInclude Include="src\dataset.h" />
     <ClInclude Include="src\document.h" />
+    <ClInclude Include="src\inference 1.h" />
     <ClInclude Include="src\inference.h" />
     <ClInclude Include="src\map_type.h" />
     <ClInclude Include="src\math_func.h" />

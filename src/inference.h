@@ -25,8 +25,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
 USA
 
 ***********************************************************************/
-   
-   
+      
 #ifndef _INFERENCE_H
 #define _INFERENCE_H
 
@@ -58,11 +57,11 @@ public:
 
 	vector<vector<vector<int> > > nlzw; // for trained model
 	vector<vector<int> > nlz;  // for trained model
-    mapword2atr word2atr;
-	mapword2id word2id; 
-	mapid2word id2word; 
-    map<int, int> id2_id; // (Wort-ID, Index) Eine Map, welche Wort-IDs und deren Index pflegt (für neue docs)
-	map<int, int> _id2id; // Diese Map speichert dagegen (Index, Wort-ID)
+	mapid2word id2word; // glob. Vokabular "2984 access"
+	mapword2id word2id; // glob. Vokabular "access 2984"
+    mapword2atr word2atr; // lok.(!!!) Vokabular "access {2984, sentiLabel}" Beachte: word2atr ist nicht mit dem globalen Mapping zu verwechseln! Hier gilt es nur für das lokale Vokabular
+    map<int, int> id2_id; // lok. Vok. (glob_id, loc_id) Mapping zwischen glob und loc Word-IDs (für neue docs)
+	map<int, int> _id2id; // lok. Vok. Dieses Mapping bildet dagegen loc auf glob Word-IDs ab
 	mapword2prior sentiLex; // <string, int> => <word, polarity>
 	vector<string> newWords;
 

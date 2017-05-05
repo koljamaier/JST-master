@@ -120,7 +120,7 @@ int model::excute_model() {
 		return 1;
 	}
 
-	word2atr = pdataset->word2atr; // "access 2984"
+	word2atr = pdataset->word2atr; // "access {2984, sentiLabel}"
 	id2word =  pdataset->id2word; // "2984 access"
 	init_model_parameters();
 	if (init_estimate()) return 1; // Für die Worte werden zunächst labels zufällig gewählt. Davon ausgehend kann man dann estimate() aufrufen und Gibbs-Samplen
