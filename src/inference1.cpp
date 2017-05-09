@@ -302,6 +302,19 @@ int Inference::init_inf() {
 	printf("vocabSize = %d\n", pnewData->vocabSize);
 	printf("numNew_word = %d\n", (int)(pnewData->newWords.size()));
 
+
+	// Erweitere die Größe von nlzw um die neuen Wörter
+	nlzw.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		nlzw[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			nlzw[l][z].resize(vocabSize + pnewData->newWords.size());
+			for (int r = vocabSize; r < vocabSize + pnewData->newWords.size(); r++) {
+				nlzw[l][z][r] = 0;
+			}
+		}
+	}
+
 	// init inf
 	// Hier initialisieren wir die ersten Sentiment-/Topic-Labels. Somit kann dann das "richtige" Sampling starten
 	int sentiLab, topic; 
@@ -389,7 +402,7 @@ int Inference::inference() {
 // neuen Daten (wie z.B. new_nlzw) initialisiert. 
 // Auch der Prior durch Lambda (Sentilex) wird in Beta einmodelliert
 int Inference::init_parameters() {
-
+	
 	// model counts
 	// new_p wird zur posterior-Berechnung benutzt p(l | d) (das Label eines Dokumentes soll also estimated werden)
 	new_p.resize(numSentiLabs);
