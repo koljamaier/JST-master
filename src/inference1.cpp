@@ -1,29 +1,5 @@
 /**********************************************************************
-		        Joint Sentiment-Topic (JST) Model
-***********************************************************************
-
-(C) Copyright 2013, Chenghua Lin and Yulan He
-
-Written by: Chenghua Lin, University of Aberdeen, chenghua.lin@abdn.ac.uk.
-Part of code is from http://gibbslda.sourceforge.net/.
-
-This file is part of JST implementation.
-
-JST is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free
-Software Foundation; either version 2 of the License, or (at your
-option) any later version.
-
-JST is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
-USA
-
+		       dynamic Joint Sentiment-Topic (dJST) Model
 ***********************************************************************/
    
 #include "inference.h"
@@ -165,7 +141,8 @@ int Inference::read_model_setting(string filename) {
 // read '.tassign' file of previously trained model
 // Nach dieser Methode ist unser bereits trainiertes Modell vollständig geladen (als dataset) 
 // mit allen Dokumenten auf die trainiert wurde (mittels id-mapping wie in .tassign)
-// und die entsprechenden counts (word,senti,topic) werden wiederhergestellt
+// und die entsprechenden counts (word,senti,topic) werden wiederhergestellt.
+// Darüber könnte man dann auch wieder die Verteilungen phi, theta und pi herstellen
 int Inference::load_model(string filename) {
 
     char buff[BUFF_SIZE_LONG];
@@ -316,7 +293,7 @@ int Inference::init_inf() {
 	}
 
 	// init inf
-	// Hier initialisieren wir die ersten Sentiment-/Topic-Labels. Somit kann dann das "richtige" Sampling starten
+	// Hier initialisieren (zufällig) wir die ersten Sentiment-/Topic-Labels. Somit kann dann das "richtige" Sampling starten
 	int sentiLab, topic; 
 	new_z.resize(pnewData->numDocs);
 	new_l.resize(pnewData->numDocs);
@@ -546,7 +523,7 @@ int Inference::inf_sampling(int m, int n, int& sentiLab, int& topic) {
 	new_nd[m]--;
 	new_ndl[m][sentiLab]--;
 	new_ndlz[m][sentiLab][topic]--;
-	new_nlzw[sentiLab][topic][_w]--; // Der count welcher hier durch (das letzte) sampling ermittelt wurde. nlzw[l][k][w] bezieht sich dagegen auf den bereits gelernten Count des trainierten Modells
+	new_nlzw[sentiLab][topic][_w]--; // Der count welcher hier durch die vorausgegangene sampling-iteration ermittelt wurde. nlzw[l][k][w] bezieht sich dagegen auf den bereits gelernten Count des trainierten Modells
 	new_nlz[sentiLab][topic]--;
 
     // do multinomial sampling via cumulative method

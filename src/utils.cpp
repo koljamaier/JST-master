@@ -175,6 +175,74 @@ int utils::parse_args_est(int argc, char ** argv, model * pmodel) {
 
     return 0;
 }
+
+int utils::parse_args_est1(int argc, char ** argv, model * pmodel) {
+
+	int i = 1;
+	while (i < argc) {
+		string arg = argv[i];
+		if (arg == "-config") {
+			configfile = argv[++i];
+			break;
+		}
+		i++;
+	}
+
+	if (configfile != "") {
+		// Hier lesen wir sämtliche Parameter der Config-Datei aus
+		if (read_config_file(configfile)) {
+			return 1;
+		}
+	}
+
+	// In den folgenden Zeilen werden alle gelesenen Parameter in das Modell geschrieben
+
+	if (wordmapfile != "")
+		pmodel->wordmapfile = wordmapfile;
+
+	if (sentiLexFile != "")
+		pmodel->sentiLexFile = sentiLexFile;
+
+	if (datasetFile != "") {
+		pmodel->datasetFile = datasetFile;
+	}
+
+	if (numSentiLabs > 0) pmodel->numSentiLabs = numSentiLabs;
+	if (numTopics > 0) pmodel->numTopics = numTopics;
+	if (niters > 0)  pmodel->niters = niters;
+	if (savestep > 0) pmodel->savestep = savestep;
+	if (twords > 0)   pmodel->twords = twords;
+	pmodel->updateParaStep = updateParaStep; // -1: no parameter optimization
+
+	if (alpha > 0.0) pmodel->_alpha = alpha;
+	if (beta > 0.0) pmodel->_beta = beta;
+	if (gamma > 0.0) pmodel->_gamma = gamma;
+
+	if (data_dir != "") {
+		if (data_dir[data_dir.size() - 1] != '/') {
+			data_dir += "/";
+		}
+		pmodel->data_dir = data_dir;
+	}
+	else {
+		printf("Please specify input data dir!\n");
+		return 1;
+	}
+
+	if (result_dir != "") {
+		if (make_dir(result_dir)) return 1;
+		if (result_dir[result_dir.size() - 1] != '/') {
+			result_dir += "/";
+		}
+		pmodel->result_dir = result_dir;
+	}
+	else {
+		printf("Please specify output dir!\n");
+		return 1;
+	}
+
+	return 0;
+}
    
 
 int utils::parse_args_inf(int argc, char ** argv, Inference * pmodel_inf) {
