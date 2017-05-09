@@ -292,6 +292,26 @@ int dataset::write_wordmap(string wordmapfile, mapword2atr &pword2atr) {
     return 0;
 }
 
+int dataset::write_wordmap1(string wordmapfile, mapword2id &pword2id) {
+
+	FILE * fout = fopen(wordmapfile.c_str(), "w");
+	if (!fout) {
+		printf("Cannot open file %s to write!\n", wordmapfile.c_str());
+		return 1;
+	}
+
+	mapword2id::iterator it;
+	// Die erste Zeile in wordmap.txt ist also die Anzahl an Wörtern
+	fprintf(fout, "%d\n", (int)(pword2id.size())); // wieviele Worte gibt es insgesamt (vocabSize)
+	for (it = pword2id.begin(); it != pword2id.end(); it++) {
+		// wordmap.txt wird dann gefüllt mit dem Wort (it->first) und dem Wortindex (it->second.id) (an welcher Stelle kommt es zum ersten Mal vor)
+		fprintf(fout, "%s %d\n", (it->first).c_str(), it->second);
+	}
+
+	fclose(fout);
+	return 0;
+}
+
 // Liest wordmap.txt ein. Die erste Zeile beschreibt numVocSize (Anzahl aller unterschiedlicher Vokabeln)
 // Die folgenden Zeilen beschreiben Paare von Word-String und korrespondierender Word-ID für den gescannten Corpus
 // z.B. "brutal 35"
@@ -331,7 +351,6 @@ int dataset::read_wordmap(string wordmapfile, mapword2id& pword2id) {
     pword2id.clear();
     char buff[BUFF_SIZE_SHORT];
     string line;
-
 
     FILE * fin = fopen(wordmapfile.c_str(), "r");
     if (!fin) {

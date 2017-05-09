@@ -75,6 +75,7 @@ public:
 	int analyzeCorpus(vector<string>& docs);
 
 	static int write_wordmap(string wordmapfile, mapword2atr& pword2atr);
+	static int write_wordmap1(string wordmapfile, mapword2id &pword2id);
 	static int read_wordmap(string wordmapfile, mapid2word& pid2word);
 	static int read_wordmap(string wordmapfile, mapword2id& pword2id); 
 

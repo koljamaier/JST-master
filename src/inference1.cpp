@@ -313,7 +313,7 @@ int Inference::init_inf() {
 		new_z[m].resize(docLength);
 		new_l[m].resize(docLength);
 		for (int t = 0; t < docLength; t++) {
-		   if (pnewData->_pdocs[m]->words[t] < 0) { // Keine Ahnung wann dieser Fall eintreten könnte
+		   if (pnewData->_pdocs[m]->words[t] < 0) { // z.B. wenn t größer als die docLength ist ;)
 			    printf("ERROR! word token %d has index smaller than 0 in doc[%d][%d]\n", pnewData->_pdocs[m]->words[t], m, t);
 				return 1;
 			}
@@ -683,7 +683,7 @@ int Inference::read_newData(string filename) {
 	    // process each token in the document
 	    for (int k = 1; k < docLength; k++) {
 			int priorSenti = -1;
-			it = word2id.find(strtok.token(k));
+			it = word2id.find(strtok.token(k).c_str());
 			if (it == word2id.end()) { // neues Wort in den Testdaten (unbekannt im glob. Voc)
 				pnewData->newWords.push_back(strtok.token(k).c_str());
 			  // word not found, i.e., word unseen in training data
@@ -697,13 +697,13 @@ int Inference::read_newData(string filename) {
 				}
 
 				// pflege neues Wort in glob. Voc. ein
-				word2id.insert(pair<string, int>(strtok.token(k), new_glob_id));
-				id2word.insert(pair<int, string>(new_glob_id, strtok.token(k)));
+				word2id.insert(pair<string, int>(strtok.token(k).c_str(), new_glob_id));
+				id2word.insert(pair<int, string>(new_glob_id, strtok.token(k).c_str()));
 
 
 				// insert sentiment info into loc. word2atr
 				Word_atr temp = { word2atr.size(), priorSenti };  // vocabulary index; word polarity
-				word2atr.insert(pair<string, Word_atr>(strtok.token(k), temp));
+				word2atr.insert(pair<string, Word_atr>(strtok.token(k).c_str(), temp));
 				priorSentiLabels.push_back(priorSenti);
 
 				// Pflege neues Wort in loc. Voc. ein
@@ -712,9 +712,9 @@ int Inference::read_newData(string filename) {
 				id2_id.insert(pair<int, int>(new_glob_id, _id)); // Ein Paar bestehend aus glob. Wort-ID und lok. Wort-ID der Map wird eingefügt
 				_id2id.insert(pair<int, int>(_id, new_glob_id)); // Ein Paar bestehend aus lok. Wort-ID und glob. Wort-ID der Map wird eingefügt
 
-				int new_loc_id = id2_id.size();
+				//int new_loc_id = id2_id.size();
 				doc.push_back(new_glob_id);
-				_doc.push_back(new_loc_id);
+				_doc.push_back(_id);
 
 				// TODO: Die neue wordmap rausschreiben!
 			}
@@ -730,8 +730,8 @@ int Inference::read_newData(string filename) {
 				    _id = _it->second; // Die Stelle in id2_id unter der die bekannte Word-ID gespeichert wurde
 				}
 
-				doc.push_back(it->second); // Hier wird die Word-ID gepusht
-				_doc.push_back(_id); // Hier wird der Index/Stelle (in der Map id2_id) der Word-ID gepusht. Dies entspricht wiederum der Word-ID für nur die neuen Dokument
+				doc.push_back(it->second); // Hier wird die glob. Word-ID gepusht
+				_doc.push_back(_id); // Hier wird der Index/Stelle (in der Map id2_id) der Word-ID gepusht. Dies entspricht wiederum der Word-ID für nur die neuen Dokumente
 
 				// 'word2atr' is specific to new/test dataset (es gilt also nur für loc. Voc.!!!)
 				itatr = word2atr.find(strtok.token(k).c_str());
@@ -778,14 +778,10 @@ int Inference::read_newData(string filename) {
 	}
 
 	// Neue Wordmap speichern
-	/*if (write_wordmap(result_dir + wordmapfile, word2atr)) {
+	if (pnewData->write_wordmap1(result_dir + wordmapfile, word2id)) {
 		printf("ERROR! Can not write wordmap file %s!\n", wordmapfile.c_str());
 		return 1;
 	}
-	if (read_wordmap(result_dir + wordmapfile, id2word)) {
-		printf("ERROR! Can not read wordmap file %s!\n", wordmapfile.c_str());
-		return 1;
-	}*/
 
 	return 0;
 }
