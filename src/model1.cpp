@@ -69,7 +69,77 @@ int model::init(int argc, char ** argv) {
 	return 0;
 }
 
+int model::initFirstModel() {
+	pdataset = new dataset(result_dir);
 
+	if (sentiLexFile != "") {
+		if (pdataset->read_senti_lexicon((sentiLexFile).c_str())) {
+			printf("Error! Cannot read sentiFile %s!\n", (sentiLexFile).c_str());
+			delete pdataset;
+			return 1;
+		}
+		this->sentiLex = pdataset->sentiLex;
+	}
+
+	// read first training set
+	fin.open((data_dir + "1.txt").c_str(), ifstream::in);
+	if (!fin) {
+		printf("Error! Cannot read dataset %s!\n", (data_dir + "1.txt").c_str());
+		return 1;
+	}
+	// Dort wird analyzeCorpus aufgerufen, um die Trainingsdaten zu verarbeiten
+	if (pdataset->read_dataStream(fin)) {
+		printf("Throw exception in function read_dataStream()! \n");
+		delete pdataset;
+		return 1;
+	}
+
+	word2atr = pdataset->word2atr; // "access {2984, sentiLabel}" glob. Voc
+	id2word = pdataset->id2word; // "2984 access"
+	init_model_parameters(); // init counts like nlzw=0 etc.
+	if (init_estimate()) return 1; // Für die Worte werden zunächst labels zufällig gewählt. Davon ausgehend kann man dann estimate() aufrufen und Gibbs-Samplen
+	if (estimate()) return 1; // sample counts and calculate new phi etc.
+	delete_model_parameters();
+	fin.close();
+
+	return 0;
+}
+
+int model::initNewModel(model * pmodel, int epoch) {
+	pdataset = new dataset(result_dir);
+
+	if (sentiLexFile != "") {
+		if (pdataset->read_senti_lexicon((sentiLexFile).c_str())) {
+			printf("Error! Cannot read sentiFile %s!\n", (sentiLexFile).c_str());
+			delete pdataset;
+			return 1;
+		}
+		this->sentiLex = pdataset->sentiLex;
+	}
+
+	fin.open((data_dir + std::to_string(epoch) + ".txt").c_str(), ifstream::in);
+	if (!fin) {
+		printf("Error! Cannot read dataset %s!\n", (data_dir + "1.txt").c_str());
+		return 1;
+	}
+
+	// Dort wird analyzeCorpus aufgerufen, um die Trainingsdaten zu verarbeiten
+	if (pdataset->read_dataStream(fin)) {
+		printf("Throw exception in function read_dataStream()! \n");
+		delete pdataset;
+		return 1;
+	}
+
+	word2atr = pdataset->word2atr; // "access {2984, sentiLabel}" glob. Voc
+	id2word = pdataset->id2word; // "2984 access"
+	init_model_parameters(); // init counts like nlzw=0 etc.
+	if (init_estimate()) return 1; // Für die Worte werden zunächst labels zufällig gewählt. Davon ausgehend kann man dann estimate() aufrufen und Gibbs-Samplen
+	if (estimate()) return 1; // sample counts and calculate new phi etc.
+	delete_model_parameters();
+	fin.close();
+
+	return 0;
+}
 
 int model::excute_model() {
 	pdataset = new dataset(result_dir);
@@ -536,7 +606,7 @@ int model::init_estimate() {
 
         for (int t = 0; t < docLength; t++) {
 		    if (pdataset->pdocs[m]->words[t] < 0) { // Keine Ahnung wann das eintreten soll
-			    printf("ERROE! word token %d has index smaller than 0 at doc[%d][%d]\n", pdataset->pdocs[m]->words[t], m, t);
+			    printf("ERROR! word token %d has index smaller than 0 at doc[%d][%d]\n", pdataset->pdocs[m]->words[t], m, t);
 				return 1;
 			}
 
@@ -583,7 +653,7 @@ int model::estimate() {
 		for (int m = 0; m < numDocs; m++) {
 		    for (int n = 0; n < pdataset->pdocs[m]->length; n++) {
 				// Hier werden auch die counts geupdatet (wie z.B. nlzw)
-				// Auf diesen neuen counts können dann die Parameter estiamtet werden (z.B. compute_phi_lzw())
+				// Auf diesen neuen counts können dann die Parameter estimated werden (z.B. compute_phi_lzw())
 				sampling(m, n, sentiLab, topic);
 				l[m][n] = sentiLab;
 				z[m][n] = topic;
@@ -654,7 +724,7 @@ int model::sampling(int m, int n, int& sentiLab, int& topic) {
 
 	// sample sentiment label l, where l \in [0, S-1]
 	// Das Topic wird in der zweiten for-Schleife "gesampled"
-	// (so funktioniert das mit der cumulative method)
+	// (so funktioniert das eben mit der cumulative method^^)
 	bool loopBreak=false;
 	for (sentiLab = 0; sentiLab < numSentiLabs; sentiLab++) {   
 		for (topic = 0; topic < numTopics; topic++) { 

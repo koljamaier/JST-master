@@ -44,7 +44,7 @@ using namespace std;
 class dataset {
 
 public:
-    mapword2atr word2atr; // speichert das gesamte(!) Vokabular/Alle Worte mit ID und Senti-Label
+    mapword2atr word2atr; // globales Vokabular: speichert das gesamte(!) Vokabular/Alle Worte mit ID und Senti-Label
 	mapid2word id2word; 
 	mapword2prior sentiLex; // <word, polarity>
 	
@@ -73,6 +73,7 @@ public:
 	int read_newData(string filename);
 	int read_senti_lexicon(string sentiLexiconFileDir);
 	int analyzeCorpus(vector<string>& docs);
+	int analyzeNewCorpus(vector<string>& docs);
 
 	static int write_wordmap(string wordmapfile, mapword2atr& pword2atr);
 	static int write_wordmap1(string wordmapfile, mapword2id &pword2id);

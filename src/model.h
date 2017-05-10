@@ -145,6 +145,8 @@ private:
 		return 0;
 	}
 
+	int initFirstModel();
+	int initNewModel(model * pmodel, int epoch);
 	int init_estimate();
 	int estimate();
 	int prior2beta();

@@ -176,6 +176,8 @@ int utils::parse_args_est(int argc, char ** argv, model * pmodel) {
     return 0;
 }
 
+// Hier geht man für die zu lesenden Trainingsdaten (datasetFile) nicht über die Config-Datei
+// Stattdessen übernimmt das später model1->initFirstModel()
 int utils::parse_args_est1(int argc, char ** argv, model * pmodel) {
 
 	int i = 1;

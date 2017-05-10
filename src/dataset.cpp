@@ -189,6 +189,98 @@ int dataset::analyzeCorpus(vector<string>& docs) {
 	return 0;
 }
 
+int dataset::analyzeNewCorpus(vector<string>& docs) {
+
+	mapword2atr::iterator it;
+	mapword2id::iterator vocabIt;
+	mapword2prior::iterator sentiIt;
+	map<int, int>::iterator idIt;
+
+	string line;
+	numDocs = docs.size();
+	// Zählt die Anzahl an unterschiedlichen Worten/Vokabeln über alle Dokumente
+	vocabSize = 0;
+	// Gibt die Anzahl an allen Wörter in allen Dokumenten an (auch Duplikate)
+	corpusSize = 0;
+	aveDocLength = 0;
+
+	// allocate memory for corpus/dataset pdocs
+	if (pdocs) {
+		deallocate();
+		pdocs = new document*[numDocs];
+	}
+	else {
+		pdocs = new document*[numDocs];
+	}
+
+	for (int i = 0; i < (int)docs.size(); ++i) {
+		line = docs.at(i); // aktuelles Dokument
+						   //strtokenizer ist eine eigene Klasse des Projekts. Darüber können wir immer wieder auf der aktuellen line (einzelnes Dokument) arbeiten
+		strtokenizer strtok(line, " \t\r\n");  // \t\r\n are the separators
+		int docLength = strtok.count_tokens();
+
+		if (docLength <= 0) {
+			printf("Invalid (empty) document!\n");
+			deallocate();
+			numDocs = vocabSize = 0;
+			return 1;
+		}
+
+		corpusSize += docLength - 1; // the first word is document name/id (z.B. "d0"; deshalb subtrahieren wir 1)
+
+									 // allocate memory for the new document_i 
+		document * pdoc = new document(docLength - 1);
+		pdoc->docID = strtok.token(0).c_str(); // z.B. "d0"
+
+											   // generate ID for the tokens in the corpus, and assign each word token with the corresponding vocabulary ID.
+		for (int k = 0; k < docLength - 1; k++) {
+			int priorSenti = -1;
+			// Der Map-Iterator springt an die Stelle, wo dieser Token (Wort) vorkommt
+			it = word2atr.find(strtok.token(k + 1).c_str());
+
+			if (it == word2atr.end()) { //  i.e., new word; denn .find liefert nur .end() zurück, wenn der Token nicht gefunden wurde
+				pdoc->words[k] = word2atr.size(); //(weil es ein neues Wort ist wissen wir, dass es ganz ans Ende muss)
+				sentiIt = sentiLex.find(strtok.token(k + 1).c_str()); // check whether the word token can be found in the sentiment lexicon
+																	  // incorporate sentiment lexicon
+				if (sentiIt != sentiLex.end()) {
+					// Wenn das Wort also im Sentilexicon (mpqa o.ä.) vorkommt, dann setze für das Wort den entspr. Senti-Prior-Label aus diesem Lexicon
+					priorSenti = sentiIt->second.id;
+				}
+
+				// insert sentiment info into word2atr
+				Word_atr temp = { word2atr.size(), priorSenti };  // vocabulary index (weil es ein neues Wort ist wissen wir, dass es ganz ans Ende muss); word polarity
+				word2atr.insert(pair<string, Word_atr>(strtok.token(k + 1), temp));
+				pdoc->priorSentiLabels[k] = priorSenti;
+
+			}
+			else { // word seen before
+				   // Beachte: Dabei wird diese Funktion (analyzeCorpus) nur einmal am Anfang aufgerufen (in read_dataStream). Später können gleiche Worte auch unterschiedliche Labels bekommen
+				pdoc->words[k] = it->second.id; // Das Wort ist also schon mit Index bekannt (it->second.id)
+				pdoc->priorSentiLabels[k] = it->second.polarity; // Auch die Polarität/Sentiment wurde bereits ermittelt
+			}
+		}
+		// Während die Variable "docs" also immer noch sehr nah bei dem rohen Input war, übertragen wir dies nun in die statische Datenstruktur document (pdoc)
+		add_doc(pdoc, i);
+	}
+
+
+	// update number of words
+	vocabSize = word2atr.size();
+	aveDocLength = corpusSize / numDocs;
+
+	if (write_wordmap(result_dir + wordmapfile, word2atr)) {
+		printf("ERROR! Can not write wordmap file %s!\n", wordmapfile.c_str());
+		return 1;
+	}
+	if (read_wordmap(result_dir + wordmapfile, id2word)) {
+		printf("ERROR! Can not read wordmap file %s!\n", wordmapfile.c_str());
+		return 1;
+	}
+
+	docs.clear();
+	return 0;
+}
+
 
 
 void dataset::deallocate() 
