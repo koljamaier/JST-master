@@ -45,16 +45,27 @@ class dataset {
 
 public:
     mapword2atr word2atr; // globales Vokabular: speichert das gesamte(!) Vokabular/Alle Worte mit ID und Senti-Label
-	mapid2word id2word; 
+	mapid2word id2word; // glob. Vokabular "2984 access"
+	mapword2id word2id; // glob. Vokabular "access 2984"
 	mapword2prior sentiLex; // <word, polarity>
+	// added
+	map<int, int> id2_id; // lok. Vok. (glob_id, loc_id) Mapping zwischen glob und loc Word-IDs (für neue docs)
+	map<int, int> _id2id; // lok. Vok. Dieses Mapping bildet dagegen loc auf glob Word-IDs ab
+	vector<string> newWords;
 	
 	document ** pdocs; // store training data vocab ID (in pdocs sind alle alten Trainings-Dokumente als ID-Wort-Sentiment-Paare gespeichert)
 	document ** _pdocs; // only use for inference, i.e., for storing the new/test vocab ID (Hier werden also die Word-IDs nur bezüglich des neuen Docs gespeichert; unabhängig davon, ob ein Wort schon in den Trainingsdaten gesehen wurde (es bekommt also dennoch eine "neue" Word-ID))
     ifstream fin;
 	
-	string data_dir;
-	string result_dir;
+	string data_dir; // path to data
+	string result_dir; // result model path
 	string wordmapfile;
+
+	// added for new data
+	string model_dir; // path to old model
+	string datasetFile; // new data file
+	//string model_name;
+	//string data_dir;
 
 	int numDocs;
 	int aveDocLength; // average document length
@@ -62,15 +73,16 @@ public:
 	int corpusSize; // Gibt die Anzahl an allen Wörter in allen Dokumenten an (auch Duplikate)
 	
 	vector<string> docs; // for buffering dataset
-	vector<string> newWords;
 		
 	// functions 
 	dataset();
 	dataset(string result_dir);
+	dataset(string result_dir, string model_dir); // added 
 	~dataset(void);
 	
 	int read_dataStream(ifstream& fin);
-	int read_newData(string filename);
+	int read_dataStream1(ifstream& fin);
+	int read_newData(vector<string>& docs);
 	int read_senti_lexicon(string sentiLexiconFileDir);
 	int analyzeCorpus(vector<string>& docs);
 	int analyzeNewCorpus(vector<string>& docs);

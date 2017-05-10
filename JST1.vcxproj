@@ -153,6 +153,7 @@
     <ClCompile Include="src\dataset.cpp" />
     <ClCompile Include="src\inference.cpp" />
     <ClCompile Include="src\inference1.cpp" />
+    <ClCompile Include="src\inference2.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\math_func.cpp" />
     <ClCompile Include="src\model.cpp" />

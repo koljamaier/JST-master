@@ -1,7 +1,7 @@
 /**********************************************************************
 		       dynamic Joint Sentiment-Topic (dJST) Model
 ***********************************************************************/
-/*
+   
 #include "inference.h"
 using namespace std;
 
@@ -55,9 +55,19 @@ Inference::~Inference(void) {
 int Inference::init(int argc, char ** argv) {
 	// Die ganzen Argumente in test.properties werden eingelesen (wie Pfade für result-directory (result_dir) und data-directory (data_dir))
 	// Diese Werte werden dann in dieses (this) Modell geschrieben
+	firstModel = new model();
+
     if (putils->parse_args_inf(argc, argv, this)) {
 	    return 1;
     }
+	if (putils->parse_args_est(argc, argv, firstModel)) {
+		return 1;
+	}
+
+	if (initFirstModel1()) {
+		printf("Hat leider nicht geworkt \n");
+		return 1;
+	}
 
 	if(init_inf()) {
 	    printf("Throw expectation in init_inf()!  \n");
@@ -70,6 +80,329 @@ int Inference::init(int argc, char ** argv) {
 	}
 
     return 0;
+}
+
+// Nach dieser Methode ist alles vorbereitet für die eigentliche Inferenz
+// Hier werden neue Daten eingelesen und bearbeitet
+// Topic und Senti-Labels werden (zufällig) initialisiert und entsprechende counts gebildet etc.
+int Inference::init_inf() {
+
+	pmodelData = new dataset();
+	pnewData = new dataset(result_dir);
+
+	// Das liest die Parameter (.others) von einem alten/trainierten Modell ein (wie z.B. numTopics, numDocs,...)
+	if (read_model_setting(model_dir + model_name + ".others")) {
+		printf("Throw exception in read_para_setting()!\n");
+		return 1;
+	}
+
+	// load model
+	// Hier liest man die Wortzuweisungen (.tassign) des trainierten Modells ein
+	// pmodelData wird hier befüllt
+	if (load_model(model_dir + model_name + ".tassign")) {
+		printf("Throw exception in load_model()!\n");
+		return 1;
+	}
+
+	// *** TODO move the function to dataset class
+	// In dieser Methode wird der neue Datensatz gelesen, verarbeitet und in pnewData geschrieben
+	if (read_newData(data_dir + datasetFile)) {
+		printf("Throw exception in read_newData()!\n");
+		return 1;
+	}
+
+	// Hier werden sämtliche count-parameter initialisiert (z.B. nlzw)
+	if (init_parameters()) {
+		printf("Throw exception in init_parameters!\n");
+		return 1;
+	}
+
+	printf("Testset statistics: \n");
+	printf("numDocs = %d\n", pnewData->numDocs);
+	printf("vocabSize = %d\n", pnewData->vocabSize);
+	printf("numNew_word = %d\n", (int)(pnewData->newWords.size()));
+
+
+	// Erweitere die Größe von nlzw um die neuen Wörter
+	nlzw.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		nlzw[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			nlzw[l][z].resize(vocabSize + pnewData->newWords.size());
+			for (int r = vocabSize; r < vocabSize + pnewData->newWords.size(); r++) {
+				nlzw[l][z][r] = 0;
+			}
+		}
+	}
+
+	// init inf
+	// Hier initialisieren (zufällig) wir die ersten Sentiment-/Topic-Labels. Somit kann dann das "richtige" Sampling starten
+	int sentiLab, topic;
+	new_z.resize(pnewData->numDocs);
+	new_l.resize(pnewData->numDocs);
+
+	for (int m = 0; m < pnewData->numDocs; m++) {
+		int docLength = pnewData->_pdocs[m]->length;
+		new_z[m].resize(docLength);
+		new_l[m].resize(docLength);
+		for (int t = 0; t < docLength; t++) {
+			if (pnewData->_pdocs[m]->words[t] < 0) { // z.B. wenn t größer als die docLength ist ;)
+				printf("ERROR! word token %d has index smaller than 0 in doc[%d][%d]\n", pnewData->_pdocs[m]->words[t], m, t);
+				return 1;
+			}
+
+			// sample sentiment label
+			if ((pnewData->pdocs[m]->priorSentiLabels[t] > -1) && (pnewData->pdocs[m]->priorSentiLabels[t] < numSentiLabs)) {
+				sentiLab = pnewData->pdocs[m]->priorSentiLabels[t]; // incorporate prior information into the model  
+			}
+			else { // Wenn keine Prior Information (über das Lexicon) vorliegt, so samplen wir zufällig ein Label
+				sentiLab = (int)(((double)rand() / RAND_MAX) * numSentiLabs);
+				if (sentiLab == numSentiLabs) sentiLab = numSentiLabs - 1;
+			}
+			new_l[m][t] = sentiLab;
+
+			// sample topic label
+			topic = (int)(((double)rand() / RAND_MAX) * numTopics);
+			if (topic == numTopics)  topic = numTopics - 1;
+			new_z[m][t] = topic;
+
+			new_nd[m]++;
+			new_ndl[m][sentiLab]++;
+			new_ndlz[m][sentiLab][topic]++;
+			new_nlzw[sentiLab][topic][pnewData->_pdocs[m]->words[t]]++;
+			new_nlz[sentiLab][topic]++;
+		}
+	}
+
+	return 0;
+}
+
+
+int Inference::initFirstModel() {
+	pnewData = new dataset(result_dir);
+
+	if (sentiLexFile != "") {
+		if (pnewData->read_senti_lexicon((sentiLexFile).c_str())) {
+			printf("Error! Cannot read sentiFile %s!\n", (sentiLexFile).c_str());
+			delete pnewData;
+			return 1;
+		}
+		this->sentiLex = pnewData->sentiLex;
+	}
+
+	// read first training set
+	fin.open((data_dir + "1.dat").c_str(), ifstream::in);
+	if (!fin) {
+		printf("Error! Cannot read dataset %s!\n", (data_dir + "1.dat").c_str());
+		return 1;
+	}
+	fin.close();
+	// Dort wird analyzeCorpus aufgerufen, um die Trainingsdaten zu verarbeiten
+	if (pnewData->read_dataStream1(fin)) {
+		printf("Throw exception in function read_dataStream()! \n");
+		delete pnewData;
+		return 1;
+	}
+
+	word2atr = pnewData->word2atr; // "access {2984, sentiLabel}" glob. Voc
+	id2word = pnewData->id2word; // "2984 access"
+
+	// Hier werden sämtliche count-parameter initialisiert (z.B. nlzw)
+	if (init_parameters()) {
+		printf("Throw exception in init_parameters!\n");
+		return 1;
+	}
+
+	printf("Testset statistics: \n");
+	printf("numDocs = %d\n", pnewData->numDocs);
+	printf("vocabSize = %d\n", pnewData->vocabSize);
+	printf("numNew_word = %d\n", (int)(pnewData->newWords.size()));
+
+
+	// Erweitere die Größe von nlzw um die neuen Wörter
+	nlzw.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		nlzw[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			nlzw[l][z].resize(vocabSize + pnewData->newWords.size());
+			for (int r = vocabSize; r < vocabSize + pnewData->newWords.size(); r++) {
+				nlzw[l][z][r] = 0;
+			}
+		}
+	}
+
+	// init inf
+	// Hier initialisieren (zufällig) wir die ersten Sentiment-/Topic-Labels. Somit kann dann das "richtige" Sampling starten
+	int sentiLab, topic;
+	new_z.resize(pnewData->numDocs);
+	new_l.resize(pnewData->numDocs);
+
+	for (int m = 0; m < pnewData->numDocs; m++) {
+		int docLength = pnewData->_pdocs[m]->length;
+		new_z[m].resize(docLength);
+		new_l[m].resize(docLength);
+		for (int t = 0; t < docLength; t++) {
+			if (pnewData->_pdocs[m]->words[t] < 0) { // z.B. wenn t größer als die docLength ist ;)
+				printf("ERROR! word token %d has index smaller than 0 in doc[%d][%d]\n", pnewData->_pdocs[m]->words[t], m, t);
+				return 1;
+			}
+
+			// sample sentiment label
+			if ((pnewData->pdocs[m]->priorSentiLabels[t] > -1) && (pnewData->pdocs[m]->priorSentiLabels[t] < numSentiLabs)) {
+				sentiLab = pnewData->pdocs[m]->priorSentiLabels[t]; // incorporate prior information into the model  
+			}
+			else { // Wenn keine Prior Information (über das Lexicon) vorliegt, so samplen wir zufällig ein Label
+				sentiLab = (int)(((double)rand() / RAND_MAX) * numSentiLabs);
+				if (sentiLab == numSentiLabs) sentiLab = numSentiLabs - 1;
+			}
+			new_l[m][t] = sentiLab;
+
+			// sample topic label
+			topic = (int)(((double)rand() / RAND_MAX) * numTopics);
+			if (topic == numTopics)  topic = numTopics - 1;
+			new_z[m][t] = topic;
+
+			new_nd[m]++;
+			new_ndl[m][sentiLab]++;
+			new_ndlz[m][sentiLab][topic]++;
+			new_nlzw[sentiLab][topic][pnewData->_pdocs[m]->words[t]]++;
+			new_nlz[sentiLab][topic]++;
+		}
+	}
+
+	return 0;
+}
+
+int Inference::initFirstModel1() {
+	if (firstModel->initFirstModel()) {
+		printf("Throw exception in initFirstModel1()!\n");
+		return 1;
+	}
+	return 0;
+}
+
+int Inference::initNewModel(int epoch) {
+
+	pmodelData = new dataset();
+	pnewData = new dataset(result_dir, model_dir);
+
+	// Das liest die Parameter (.others) von einem alten/trainierten Modell ein (wie z.B. numTopics, numDocs,...)
+	if (read_model_setting(model_dir + model_name + ".others")) {
+		printf("Throw exception in read_para_setting()!\n");
+		return 1;
+	}
+
+	// load model old model in pmodelData
+	if (load_model(model_dir + model_name + ".tassign")) {
+		printf("Throw exception in load_model()!\n");
+		return 1;
+	}
+
+	// *** TODO move the function to dataset class
+	/*if(read_newData(data_dir + datasetFile)) {
+	printf("Throw exception in read_newData()!\n");
+	return 1;
+	}*/
+
+	if (sentiLexFile != "") {
+		if (pnewData->read_senti_lexicon((sentiLexFile).c_str())) {
+			printf("Error! Cannot read sentiFile %s!\n", (sentiLexFile).c_str());
+			delete pnewData;
+			return 1;
+		}
+		this->sentiLex = pnewData->sentiLex;
+	}
+
+	// read first training set
+	fin.open((data_dir + std::to_string(epoch) + ".dat").c_str(), ifstream::in);
+	if (!fin) {
+		printf("Error! Cannot read dataset %s!\n", (data_dir + std::to_string(epoch) + ".dat").c_str());
+		return 1;
+	}
+	fin.close();
+	// Trainingsdaten verarbeiten
+	if (pnewData->read_dataStream1(fin)) {
+		printf("Throw exception in function read_dataStream()! \n");
+		delete pnewData;
+		return 1;
+	}
+
+	this->newNumDocs = pnewData->numDocs;
+	this->newVocabSize = pnewData->vocabSize;
+
+	if (newVocabSize == 0) { // Falls nur neue Worte in den Trainingsdaten auftreten
+		printf("ERROR! Vocabulary size of test set after removing unseen words is 0! \n");
+		return 1;
+	}
+
+	word2atr = pnewData->word2atr; // "access {2984, sentiLabel}" glob. Voc
+	id2word = pnewData->id2word; // "2984 access"
+								 // delete_model_parameters();
+
+								 // Hier werden sämtliche count-parameter initialisiert (z.B. nlzw)
+	if (init_parameters()) {
+		printf("Throw exception in init_parameters!\n");
+		return 1;
+	}
+
+	printf("Testset statistics: \n");
+	printf("numDocs = %d\n", pnewData->numDocs);
+	printf("vocabSize = %d\n", pnewData->vocabSize);
+	printf("numNew_word = %d\n", (int)(pnewData->newWords.size()));
+
+
+	// Erweitere die Größe von nlzw um die neuen Wörter
+	nlzw.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		nlzw[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			nlzw[l][z].resize(vocabSize + pnewData->newWords.size());
+			for (int r = vocabSize; r < vocabSize + pnewData->newWords.size(); r++) {
+				nlzw[l][z][r] = 0;
+			}
+		}
+	}
+
+	// init inf
+	// Hier initialisieren (zufällig) wir die ersten Sentiment-/Topic-Labels. Somit kann dann das "richtige" Sampling starten
+	int sentiLab, topic;
+	new_z.resize(pnewData->numDocs);
+	new_l.resize(pnewData->numDocs);
+
+	for (int m = 0; m < pnewData->numDocs; m++) {
+		int docLength = pnewData->_pdocs[m]->length;
+		new_z[m].resize(docLength);
+		new_l[m].resize(docLength);
+		for (int t = 0; t < docLength; t++) {
+			if (pnewData->_pdocs[m]->words[t] < 0) { // z.B. wenn t größer als die docLength ist ;)
+				printf("ERROR! word token %d has index smaller than 0 in doc[%d][%d]\n", pnewData->_pdocs[m]->words[t], m, t);
+				return 1;
+			}
+
+			// sample sentiment label
+			if ((pnewData->pdocs[m]->priorSentiLabels[t] > -1) && (pnewData->pdocs[m]->priorSentiLabels[t] < numSentiLabs)) {
+				sentiLab = pnewData->pdocs[m]->priorSentiLabels[t]; // incorporate prior information into the model  
+			}
+			else { // Wenn keine Prior Information (über das Lexicon) vorliegt, so samplen wir zufällig ein Label
+				sentiLab = (int)(((double)rand() / RAND_MAX) * numSentiLabs);
+				if (sentiLab == numSentiLabs) sentiLab = numSentiLabs - 1;
+			}
+			new_l[m][t] = sentiLab;
+
+			// sample topic label
+			topic = (int)(((double)rand() / RAND_MAX) * numTopics);
+			if (topic == numTopics)  topic = numTopics - 1;
+			new_z[m][t] = topic;
+
+			new_nd[m]++;
+			new_ndl[m][sentiLab]++;
+			new_ndlz[m][sentiLab][topic]++;
+			new_nlzw[sentiLab][topic][pnewData->_pdocs[m]->words[t]]++;
+			new_nlz[sentiLab][topic]++;
+		}
+	}
+
+	return 0;
 }
 
 
@@ -236,102 +569,6 @@ int Inference::load_model(string filename) {
 	}
 	
     return 0;
-}
-
-
-// Nach dieser Methode ist alles vorbereitet für die eigentliche Inferenz
-// Hier werden neue Daten eingelesen und bearbeitet
-// Topic und Senti-Labels werden (zufällig) initialisiert und entsprechende counts gebildet etc.
-int Inference::init_inf() {
-
-	pmodelData = new dataset();
-	pnewData = new dataset(result_dir);
-
-	// Das liest die Parameter (.others) von einem alten/trainierten Modell ein (wie z.B. numTopics, numDocs,...)
-	if(read_model_setting(model_dir + model_name + ".others")) {
-	    printf("Throw exception in read_para_setting()!\n");
-		return 1;
-	}
-
-	// load model
-	// Hier liest man die Wortzuweisungen (.tassign) des trainierten Modells ein
-	// pmodelData wird hier befüllt
-	if(load_model(model_dir + model_name + ".tassign")) {
-	    printf("Throw exception in load_model()!\n");
-		return 1; 
-	}
-
-	// *** TODO move the function to dataset class
-	// In dieser Methode wird der neue Datensatz gelesen, verarbeitet und in pnewData geschrieben
-	if(read_newData(data_dir + datasetFile)) {
-	    printf("Throw exception in read_newData()!\n");
-		return 1; 
-	}
-
-	// Hier werden sämtliche count-parameter initialisiert (z.B. nlzw)
-	if(init_parameters()) {
-	    printf("Throw exception in init_parameters!\n");
-		return 1;
-	}
-
-	printf("Testset statistics: \n");
-	printf("numDocs = %d\n", pnewData->numDocs);
-	printf("vocabSize = %d\n", pnewData->vocabSize);
-	printf("numNew_word = %d\n", (int)(pnewData->newWords.size()));
-
-
-	// Erweitere die Größe von nlzw um die neuen Wörter
-	nlzw.resize(numSentiLabs);
-	for (int l = 0; l < numSentiLabs; l++) {
-		nlzw[l].resize(numTopics);
-		for (int z = 0; z < numTopics; z++) {
-			nlzw[l][z].resize(vocabSize + pnewData->newWords.size());
-			for (int r = vocabSize; r < vocabSize + pnewData->newWords.size(); r++) {
-				nlzw[l][z][r] = 0;
-			}
-		}
-	}
-
-	// init inf
-	// Hier initialisieren (zufällig) wir die ersten Sentiment-/Topic-Labels. Somit kann dann das "richtige" Sampling starten
-	int sentiLab, topic; 
-	new_z.resize(pnewData->numDocs);
-	new_l.resize(pnewData->numDocs);
-
-	for (int m = 0; m < pnewData->numDocs; m++) {
-		int docLength = pnewData->_pdocs[m]->length;
-		new_z[m].resize(docLength);
-		new_l[m].resize(docLength);
-		for (int t = 0; t < docLength; t++) {
-		   if (pnewData->_pdocs[m]->words[t] < 0) { // z.B. wenn t größer als die docLength ist ;)
-			    printf("ERROR! word token %d has index smaller than 0 in doc[%d][%d]\n", pnewData->_pdocs[m]->words[t], m, t);
-				return 1;
-			}
-
-			// sample sentiment label
-		    if ((pnewData->pdocs[m]->priorSentiLabels[t] > -1) && (pnewData->pdocs[m]->priorSentiLabels[t] < numSentiLabs)) {
-			    sentiLab = pnewData->pdocs[m]->priorSentiLabels[t]; // incorporate prior information into the model  
-			}
-			else { // Wenn keine Prior Information (über das Lexicon) vorliegt, so samplen wir zufällig ein Label
-			    sentiLab = (int)(((double)rand() / RAND_MAX) * numSentiLabs);
-			    if (sentiLab == numSentiLabs) sentiLab = numSentiLabs -1;
-			}
-		    new_l[m][t] = sentiLab;
-
-			// sample topic label
-			topic = (int)(((double)rand() / RAND_MAX) * numTopics);
-			if (topic == numTopics)  topic = numTopics - 1;
-			new_z[m][t] = topic;
-
-			new_nd[m]++;
-			new_ndl[m][sentiLab]++;
-			new_ndlz[m][sentiLab][topic]++;
-			new_nlzw[sentiLab][topic][pnewData->_pdocs[m]->words[t]]++;
-			new_nlz[sentiLab][topic]++;
-       } 
-	}
-	
-	return 0;
 }
 
 
@@ -767,6 +1004,7 @@ int Inference::read_newData(string filename) {
 		return 1;
 	}
 
+	// added
 	// Neue Wordmap speichern
 	if (pnewData->write_wordmap1(result_dir + wordmapfile, word2id)) {
 		printf("ERROR! Can not write wordmap file %s!\n", wordmapfile.c_str());
@@ -1051,4 +1289,3 @@ int Inference::prior2beta() {
 
 	return 0;
 }
-*/

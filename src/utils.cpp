@@ -178,70 +178,80 @@ int utils::parse_args_est(int argc, char ** argv, model * pmodel) {
 
 // Hier geht man für die zu lesenden Trainingsdaten (datasetFile) nicht über die Config-Datei
 // Stattdessen übernimmt das später model1->initFirstModel()
-int utils::parse_args_est1(int argc, char ** argv, model * pmodel) {
+int utils::parse_args_est1(int argc, char ** argv, Inference * pmodel_inf) {
 
 	int i = 1;
 	while (i < argc) {
 		string arg = argv[i];
+		printf("arg=%s\n", arg.c_str());
 		if (arg == "-config") {
 			configfile = argv[++i];
 			break;
 		}
 		i++;
 	}
-
 	if (configfile != "") {
-		// Hier lesen wir sämtliche Parameter der Config-Datei aus
-		if (read_config_file(configfile)) {
-			return 1;
-		}
+		// Wie für est lesen wir hier zunächst die Config-Parameter aus der .txt
+		// Beachte: Hier können wir auch die option angeben das bereits bekannte Vokabular (über wordmap.txt) einzubinden
+		if (read_config_file(configfile)) return 1;
 	}
 
-	// In den folgenden Zeilen werden alle gelesenen Parameter in das Modell geschrieben
-
+	// Im Folgenden werden die Werte dann gesetzt
 	if (wordmapfile != "")
-		pmodel->wordmapfile = wordmapfile;
+		pmodel_inf->wordmapfile = wordmapfile;
 
 	if (sentiLexFile != "")
-		pmodel->sentiLexFile = sentiLexFile;
+		pmodel_inf->sentiLexFile = sentiLexFile;
 
-	if (datasetFile != "") {
-		pmodel->datasetFile = datasetFile;
+	if (datasetFile != "")
+		pmodel_inf->datasetFile = datasetFile;
+	else {
+		printf("Please specify input dataset file!\n");
+		return 1;
 	}
 
-	if (numSentiLabs > 0) pmodel->numSentiLabs = numSentiLabs;
-	if (numTopics > 0) pmodel->numTopics = numTopics;
-	if (niters > 0)  pmodel->niters = niters;
-	if (savestep > 0) pmodel->savestep = savestep;
-	if (twords > 0)   pmodel->twords = twords;
-	pmodel->updateParaStep = updateParaStep; // -1: no parameter optimization
+	// Der Pfad des bereits trainierten Modells
+	if (model_dir != "") {
+		if (model_dir[model_dir.size() - 1] != '/') model_dir += "/";
+		pmodel_inf->model_dir = model_dir;
+	}
 
-	if (alpha > 0.0) pmodel->_alpha = alpha;
-	if (beta > 0.0) pmodel->_beta = beta;
-	if (gamma > 0.0) pmodel->_gamma = gamma;
-
+	// Pfad für die (neuen) Daten
 	if (data_dir != "") {
-		if (data_dir[data_dir.size() - 1] != '/') {
-			data_dir += "/";
-		}
-		pmodel->data_dir = data_dir;
+		if (data_dir[data_dir.size() - 1] != '/') data_dir += "/";
+		pmodel_inf->data_dir = data_dir;
 	}
 	else {
 		printf("Please specify input data dir!\n");
 		return 1;
 	}
 
+	// Pfad für das Ergebnis der Inferenz (auf den neuen Daten)
 	if (result_dir != "") {
 		if (make_dir(result_dir)) return 1;
-		if (result_dir[result_dir.size() - 1] != '/') {
-			result_dir += "/";
-		}
-		pmodel->result_dir = result_dir;
+		if (result_dir[result_dir.size() - 1] != '/') result_dir += "/";
+		pmodel_inf->result_dir = result_dir;
 	}
 	else {
 		printf("Please specify output dir!\n");
 		return 1;
 	}
+
+	// Name des trainierten EST Modells! Unter diesem Namen werden die Parameter des trainierten Modells gesucht und geladen z.B. "00100.final.newtassign"
+	if (model_name != "")
+		pmodel_inf->model_name = model_name;
+	else {
+		printf("Please specify the trained dJST model name!\n");
+		return 1;
+	}
+
+	if (niters > 0) pmodel_inf->niters = niters;
+	if (twords > 0) pmodel_inf->twords = twords;
+	if (savestep > 0) pmodel_inf->savestep = savestep;
+	if (updateParaStep > 0) pmodel_inf->updateParaStep = updateParaStep;
+	if (alpha > 0.0) pmodel_inf->_alpha = alpha;
+	if (beta > 0.0) pmodel_inf->_beta = beta;
+	if (gamma > 0.0) pmodel_inf->_gamma = gamma;
 
 	return 0;
 }
@@ -323,6 +333,88 @@ int utils::parse_args_inf(int argc, char ** argv, Inference * pmodel_inf) {
 	if (gamma > 0.0) pmodel_inf->_gamma = gamma;
 
     return 0;
+}
+
+
+// Somit können nun .properties eingelesen werden, welche sowohl inf-, als auch est- Parameter enthalten (also nsentiLabs, ntopics, updateParaStep)
+int utils::parse_args_inf1(int argc, char ** argv, Inference * pmodel_inf) {
+
+	int i = 1;
+	while (i < argc) {
+		string arg = argv[i];
+		printf("arg=%s\n", arg.c_str());
+		if (arg == "-config") {
+			configfile = argv[++i];
+			break;
+		}
+		i++;
+	}
+	if (configfile != "") {
+		// Wie für est lesen wir hier zunächst die Config-Parameter aus der .txt
+		// Beachte: Hier können wir auch die option angeben das bereits bekannte Vokabular (über wordmap.txt) einzubinden
+		if (read_config_file(configfile)) return 1;
+	}
+
+	// Im Folgenden werden die Werte dann gesetzt
+	if (wordmapfile != "")
+		pmodel_inf->wordmapfile = wordmapfile;
+
+	if (sentiLexFile != "")
+		pmodel_inf->sentiLexFile = sentiLexFile;
+
+	if (datasetFile != "")
+		pmodel_inf->datasetFile = datasetFile;
+	else {
+		printf("Please specify input dataset file!\n");
+		return 1;
+	}
+
+	// Der Pfad des bereits trainierten Modells
+	if (model_dir != "") {
+		if (model_dir[model_dir.size() - 1] != '/') model_dir += "/";
+		pmodel_inf->model_dir = model_dir;
+	}
+
+	// Pfad für die (neuen) Daten
+	if (data_dir != "") {
+		if (data_dir[data_dir.size() - 1] != '/') data_dir += "/";
+		pmodel_inf->data_dir = data_dir;
+	}
+	else {
+		printf("Please specify input data dir!\n");
+		return 1;
+	}
+
+	// Pfad für das Ergebnis der Inferenz (auf den neuen Daten)
+	if (result_dir != "") {
+		if (make_dir(result_dir)) return 1;
+		if (result_dir[result_dir.size() - 1] != '/') result_dir += "/";
+		pmodel_inf->result_dir = result_dir;
+	}
+	else {
+		printf("Please specify output dir!\n");
+		return 1;
+	}
+
+	// Name des trainierten EST Modells! Unter diesem Namen werden die Parameter des trainierten Modells gesucht und geladen z.B. "00100.final.newtassign"
+	if (model_name != "")
+		pmodel_inf->model_name = model_name;
+	else {
+		printf("Please specify the trained dJST model name!\n");
+		return 1;
+	}
+
+	if (numSentiLabs > 0) pmodel_inf->numSentiLabs = numSentiLabs;
+	if (numTopics > 0) pmodel_inf->numTopics = numTopics;
+	if (niters > 0) pmodel_inf->niters = niters;
+	if (twords > 0) pmodel_inf->twords = twords;
+	if (savestep > 0) pmodel_inf->savestep = savestep;
+	if (updateParaStep > 0) pmodel_inf->updateParaStep = updateParaStep;
+	if (alpha > 0.0) pmodel_inf->_alpha = alpha;
+	if (beta > 0.0) pmodel_inf->_beta = beta;
+	if (gamma > 0.0) pmodel_inf->_gamma = gamma;
+
+	return 0;
 }
    
 

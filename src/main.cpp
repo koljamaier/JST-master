@@ -64,7 +64,7 @@ int main(int argc, char ** argv) {
 		}
 		
 		// Hier wird die estimation auf den Trainingsdaten durchgeführt
-		if(jst.excute_model()) return 1;
+		if(jst.initFirstModel()) return 1;
 	}
 
 	else if (model_status == MODEL_STATUS_INF) {

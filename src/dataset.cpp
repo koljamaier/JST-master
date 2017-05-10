@@ -65,6 +65,19 @@ dataset::dataset(string result_dir) {
 	corpusSize = 0;
 }
 
+dataset::dataset(string result_dir, string model_dir) {
+	pdocs = NULL;
+	_pdocs = NULL;
+	word2atr.clear();
+	this->result_dir = result_dir;
+	this->model_dir = model_dir;
+	wordmapfile = "wordmap.txt";
+
+	numDocs = 0;
+	aveDocLength = 0;
+	vocabSize = 0;
+	corpusSize = 0;
+}
 
 dataset::~dataset(void) {
 	deallocate();
@@ -92,6 +105,30 @@ int dataset::read_dataStream(ifstream& fin) {
 		this->analyzeCorpus(docs);
 	}
 	
+	return 0;
+}
+
+int dataset::read_dataStream1(ifstream& fin) {
+	string line;
+	char buff[BUFF_SIZE_LONG];
+	docs.clear();
+	numDocs = 0;
+
+	while (fin.getline(buff, BUFF_SIZE_LONG)) {
+		line = buff;
+		if (!line.empty()) {
+			// docs ist ein vector und kann damit dynamisch erweitert werden.
+			// "getline" liest jedoch nur bis zu einem Zeilenumbruch (\n). Dies entspricht bei unserem Datenformat also genau einem Dokument
+			// Es werden hier also alle Trainingsdokumente geladen
+			docs.push_back(line);
+			numDocs++;
+		}
+	}
+
+	if (numDocs > 0) {
+		this->read_newData(docs);
+	}
+
 	return 0;
 }
 
@@ -280,6 +317,161 @@ int dataset::analyzeNewCorpus(vector<string>& docs) {
 	docs.clear();
 	return 0;
 }
+
+int dataset::read_newData(vector<string>& docs) {
+
+	mapword2id::iterator it;
+	map<int, int>::iterator _it;
+	mapword2atr::iterator itatr;
+	mapword2prior::iterator sentiIt;
+	string line;
+	char buff[BUFF_SIZE_LONG];
+
+	// Liest die Vokabeln der alten Trainingsdokumente ein und bildet daraus Maps
+	read_wordmap(model_dir + "wordmap.txt", word2id);  // map word2id
+	read_wordmap(model_dir + "wordmap.txt", id2word);  // map id2word
+
+	if (word2id.size() <= 0) {
+		printf("Invalid wordmap!\n");
+		return 1;
+	}
+	
+	if (numDocs <= 0) {
+		printf("Error! No documents found in test data %s.\n", (data_dir + datasetFile).c_str());
+		return 1;
+	}
+
+	// allocate memory
+	if (pdocs) {
+		deallocate();
+	}
+	else {
+		pdocs = new document*[numDocs];
+	}
+	_pdocs = new document*[numDocs];
+	vocabSize = 0;
+	corpusSize = 0;
+
+	// process each document in the new data
+	for (int i = 0; i < numDocs; i++) {
+		line = docs.at(i);
+		strtokenizer strtok(line, " \t\r\n"); // \t\r\n are separators
+		int docLength = strtok.count_tokens();
+		if (docLength <= 0) {
+			printf("Invalid (empty) document!\n");
+			deallocate();
+			numDocs = 0;
+			vocabSize = 0;
+			return 1;
+		}
+
+		corpusSize += docLength - 1;
+		// Hiermit modellieren wir das neue Doc aufgrund bekannter Word-IDs aus den Trainingsdaten
+		vector<int> doc;
+		// Hier modellieren wir das neue Doc mittels Word-IDs, aber nur bezüglich der neuen Daten (loc. Voc)! Eine Wort-ID kann also z.B. schon in den Trainingsdaten vorgekommen sein. Dennoch benutzen wir hier eine neue dafür
+		// Entspricht also im Grunde dem Wort Index der Test-Daten
+		vector<int> _doc;
+
+		vector<int> priorSentiLabels;
+
+		// process each token in the document
+		for (int k = 1; k < docLength; k++) {
+			int priorSenti = -1;
+			it = word2id.find(strtok.token(k).c_str());
+			if (it == word2id.end()) { // neues Wort in den Testdaten (unbekannt im glob. Voc)
+				newWords.push_back(strtok.token(k).c_str());
+				// neue Einträge sollten damit für word2id, id2word (glob. Voc) und id2_id, _id2id, word2atr (loc. Voc) entstehen
+				// Die korrespondierenden counts dazu werden später in anderen Methoden gebildet
+				// Beachte: word2atr ist nicht mit dem globalen Mapping zu verwechseln! Hier gilt es nur für das lokale Vokabular
+				int new_glob_id = word2id.size();
+				sentiIt = sentiLex.find(strtok.token(k).c_str());
+				if (sentiIt != sentiLex.end()) {
+					priorSenti = sentiIt->second.id;
+				}
+
+				// insert into glob. voc.
+				word2id.insert(pair<string, int>(strtok.token(k).c_str(), new_glob_id));
+				id2word.insert(pair<int, string>(new_glob_id, strtok.token(k).c_str()));
+
+
+				// insert sentiment info into loc. word2atr
+				Word_atr temp = { word2atr.size(), priorSenti };  // vocabulary index; word polarity
+				word2atr.insert(pair<string, Word_atr>(strtok.token(k).c_str(), temp));
+				priorSentiLabels.push_back(priorSenti);
+
+				// insert into loc. voc.
+				int _id;
+				_id = id2_id.size(); // Die letzte Stelle der lok. Map wo die Word-ID eingepflegt wird
+				id2_id.insert(pair<int, int>(new_glob_id, _id)); // Ein Paar bestehend aus glob. Wort-ID und lok. Wort-ID der Map wird eingefügt
+				_id2id.insert(pair<int, int>(_id, new_glob_id)); // Ein Paar bestehend aus lok. Wort-ID und glob. Wort-ID der Map wird eingefügt
+
+																 //int new_loc_id = id2_id.size();
+				doc.push_back(new_glob_id);
+				_doc.push_back(_id);
+
+				// TODO: Die neue wordmap rausschreiben!
+			}
+			else { // Ansonsten ist das Wort schon im glob. Voc bekannt und wir suchen das Vorkommen
+				int _id;
+				_it = id2_id.find(it->second); // Wir suchen nach der glob. Word-ID
+				if (_it == id2_id.end()) { // Das Wort ist zwar im glob. Voc. bekannt, aber die entsprechende Word-ID wurde noch nicht in die lokale id2_id Map eingepflegt
+					_id = id2_id.size(); // Die letzte Stelle der Map wo die Word-ID eingepflegt wird
+					id2_id.insert(pair<int, int>(it->second, _id)); // Ein Paar bestehend aus glob. Wort-ID und loc. Wort-ID der Map wird eingefügt
+					_id2id.insert(pair<int, int>(_id, it->second));
+				}
+				else {	// Die Wort-ID wurde bereits in id2_id eingepflegt
+					_id = _it->second; // Die Stelle in id2_id unter der die bekannte Word-ID gespeichert wurde
+				}
+
+				doc.push_back(it->second); // Hier wird die glob. Word-ID gepusht
+				_doc.push_back(_id); // Hier wird der Index/Stelle (in der Map id2_id) der Word-ID gepusht. Dies entspricht wiederum der Word-ID für nur die neuen Dokumente
+
+									 // 'word2atr' is specific to new/test dataset (es gilt also nur für loc. Voc.!!!)
+				itatr = word2atr.find(strtok.token(k).c_str());
+				int priorSenti = -1;
+				if (itatr == word2atr.end()) {
+					sentiIt = sentiLex.find(strtok.token(k).c_str()); // check whether the word token can be found in the sentiment lexicon
+					if (sentiIt != sentiLex.end()) {
+						priorSenti = sentiIt->second.id; // Gibt zu diesem Wort das Senti-Label
+					}
+					// encode sentiment info into word2atr
+					// Falls zu dem Wort also ein Eintrag in mpqa vorliegt, so wird dieser hier benutzt
+					Word_atr temp = { _id, priorSenti };  // vocabulary index; word polarity (Beachte: Falls im Lexicon nichts gefunden wurde, so wird -1 übernommen)
+					word2atr.insert(pair<string, Word_atr>(strtok.token(k), temp));
+					priorSentiLabels.push_back(priorSenti);
+				}
+				else { // Falls das Wort direkt gefunden wurde, so müssen wir nicht nochmal ins Lexicon schauen, sondern übernehmen direkt die Polarity
+					priorSentiLabels.push_back(itatr->second.polarity);
+				}
+
+			} // end else: Für Worte/Token die bereits bekannt sind
+		} // end for: Alle Tokens/Worte des neuen Dokuments sind bearbeitet
+
+		  // allocate memory for new doc
+		document * pdoc = new document(doc, priorSentiLabels, "inference");
+		document * _pdoc = new document(_doc, priorSentiLabels, "inference");
+
+		pdoc->docID = strtok.token(0).c_str();
+		_pdoc->docID = strtok.token(0).c_str();
+
+		// add new doc
+		add_doc(pdoc, i);
+		_add_doc(_pdoc, i);
+	} // end for: Alle Dokumente wurden eingelesen & bearbeitet
+
+	  // update number of new words
+	vocabSize = id2_id.size(); // Wir beziehen uns hier also tatsächlich nur auf die bekannten (unterschiedliche) Vokabeln aus den Trainingsdaten. In .others werden diese als "newVocabSize" aufgelistet
+	aveDocLength = corpusSize / numDocs;
+
+	// Neue Wordmap speichern
+	if (write_wordmap1(result_dir + wordmapfile, word2id)) {
+		printf("ERROR! Can not write wordmap file %s!\n", wordmapfile.c_str());
+		return 1;
+	}
+
+	return 0;
+}
+
 
 
 

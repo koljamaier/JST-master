@@ -82,9 +82,9 @@ int model::initFirstModel() {
 	}
 
 	// read first training set
-	fin.open((data_dir + "1.txt").c_str(), ifstream::in);
+	fin.open((data_dir + "1.dat").c_str(), ifstream::in);
 	if (!fin) {
-		printf("Error! Cannot read dataset %s!\n", (data_dir + "1.txt").c_str());
+		printf("Error! Cannot read dataset %s!\n", (data_dir + "1.dat").c_str());
 		return 1;
 	}
 	// Dort wird analyzeCorpus aufgerufen, um die Trainingsdaten zu verarbeiten
@@ -98,7 +98,7 @@ int model::initFirstModel() {
 	id2word = pdataset->id2word; // "2984 access"
 	init_model_parameters(); // init counts like nlzw=0 etc.
 	if (init_estimate()) return 1; // Für die Worte werden zunächst labels zufällig gewählt. Davon ausgehend kann man dann estimate() aufrufen und Gibbs-Samplen
-	if (estimate()) return 1; // sample counts and calculate new phi etc.
+	if (estimate()) return 1; // sample counts and calculate new phi + save_model
 	delete_model_parameters();
 	fin.close();
 
@@ -124,7 +124,7 @@ int model::initNewModel(model * pmodel, int epoch) {
 	}
 
 	// Dort wird analyzeCorpus aufgerufen, um die Trainingsdaten zu verarbeiten
-	if (pdataset->read_dataStream(fin)) {
+	if (pdataset->read_dataStream1(fin)) {
 		printf("Throw exception in function read_dataStream()! \n");
 		delete pdataset;
 		return 1;

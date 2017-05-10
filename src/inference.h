@@ -38,6 +38,7 @@ USA
 #include "dataset.h"
 #include "utils.h"
 #include "strtokenizer.h"
+#include "model.h"
 
 using namespace std; 
 
@@ -65,11 +66,11 @@ public:
 	mapword2prior sentiLex; // <string, int> => <word, polarity>
 	vector<string> newWords;
 
-	string model_dir;
-	string model_name;
 	string data_dir;
 	string datasetFile;
 	string result_dir;
+	string model_dir;
+	string model_name;
 	string sentiLexFile;
 	string wordmapfile;
 	string betaFile;
@@ -84,6 +85,9 @@ public:
 	dataset * pmodelData;	// pointer to trained model object
     dataset * pnewData; // pointer to new/test dataset object
 	utils * putils;
+
+	// added
+	model * firstModel;
 
     int niters;
 	int liter;
@@ -130,7 +134,12 @@ public:
     int inf_sampling(int m, int n, int& sentiLab, int& topic);
 	int init_parameters();
     
-	int read_newData(string filename);
+	//added
+	int initNewModel(int epoch);
+	int initFirstModel();
+	int initFirstModel1();
+
+	int read_newData(string filename); // filename = data_dir + datasetFile
 	int read_model_setting(string filename);
 	int load_model(string model_name);
 	int prior2beta(); // for incorporating prior information
@@ -148,6 +157,9 @@ public:
     int save_model_newphi_lzw(string filename);
     int save_model_newothers(string filename);
     int save_model_newtwords(string filename);
+
+	private:
+		ifstream fin;
 };
 
 #endif
