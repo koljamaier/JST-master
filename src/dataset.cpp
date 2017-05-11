@@ -65,6 +65,19 @@ dataset::dataset(string result_dir) {
 	corpusSize = 0;
 }
 
+dataset::dataset(string result_dir, mapword2atr word2atr) {
+	pdocs = NULL;
+	_pdocs = NULL;
+	this->word2atr = word2atr;
+	this->result_dir = result_dir;
+	wordmapfile = "wordmap.txt";
+
+	numDocs = 0;
+	aveDocLength = 0;
+	vocabSize = 0;
+	corpusSize = 0;
+}
+
 dataset::dataset(string result_dir, string model_dir) {
 	pdocs = NULL;
 	_pdocs = NULL;
@@ -124,7 +137,7 @@ int dataset::read_dataStream1(ifstream& fin) {
 			numDocs++;
 		}
 	}
-
+	
 	if (numDocs > 0) {
 		this->read_newData(docs);
 	}
@@ -219,6 +232,10 @@ int dataset::analyzeCorpus(vector<string>& docs) {
 	}
 	if (read_wordmap(result_dir + wordmapfile, id2word)) {
 		printf("ERROR! Can not read wordmap file %s!\n", wordmapfile.c_str());
+		return 1;
+	}
+	if (write_wordmap(result_dir +"1"+ wordmapfile, word2atr)) {
+		printf("ERROR! Can not write wordmap file %s!\n", wordmapfile.c_str());
 		return 1;
 	}
 
@@ -319,14 +336,13 @@ int dataset::analyzeNewCorpus(vector<string>& docs) {
 }
 
 int dataset::read_newData(vector<string>& docs) {
-
 	mapword2id::iterator it;
 	map<int, int>::iterator _it;
 	mapword2atr::iterator itatr;
 	mapword2prior::iterator sentiIt;
 	string line;
-	char buff[BUFF_SIZE_LONG];
-
+	//char buff[BUFF_SIZE_LONG];
+	
 	// Liest die Vokabeln der alten Trainingsdokumente ein und bildet daraus Maps
 	read_wordmap(model_dir + "wordmap.txt", word2id);  // map word2id
 	read_wordmap(model_dir + "wordmap.txt", id2word);  // map id2word
@@ -464,11 +480,12 @@ int dataset::read_newData(vector<string>& docs) {
 	aveDocLength = corpusSize / numDocs;
 
 	// Neue Wordmap speichern
-	if (write_wordmap1(result_dir + wordmapfile, word2id)) {
+	if (write_wordmap(result_dir + "2"+wordmapfile, word2atr)) {
 		printf("ERROR! Can not write wordmap file %s!\n", wordmapfile.c_str());
 		return 1;
 	}
 
+	docs.clear();
 	return 0;
 }
 
@@ -630,7 +647,7 @@ int dataset::read_wordmap(string wordmapfile, mapid2word &pid2word) {
     return 0;
 }
 
-// Hier wird dagegen eine mapword2id erstellt
+// Hier wird dagegen eine mapword2id beschrieben
 int dataset::read_wordmap(string wordmapfile, mapword2id& pword2id) {
     pword2id.clear();
     char buff[BUFF_SIZE_SHORT];

@@ -87,7 +87,8 @@ public:
 	// init functions
 	int init(int argc, char ** argv);
 	int excute_model();
-	int initFirstModel();
+	int initFirstModel(); // added
+	int initNewModel(int epoch, string model_dir); // added
 	
 
 private:
@@ -146,7 +147,6 @@ private:
 		return 0;
 	}
 
-	int initNewModel(model * pmodel, int epoch);
 	int init_estimate();
 	int estimate();
 	int prior2beta();

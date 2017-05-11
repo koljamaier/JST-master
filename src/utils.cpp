@@ -108,6 +108,7 @@ int utils::parse_args(int argc, char ** argv, int&  model_status) {
 
 
 // In dieser Funktion werden config Parameter wie result-directory und data-directory etc. ausgelesen
+// Wir setzen die Parameter für pmodel
 int utils::parse_args_est(int argc, char ** argv, model * pmodel) {
 
     int i = 1;

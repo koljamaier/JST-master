@@ -53,29 +53,62 @@ Inference::~Inference(void) {
 
 
 int Inference::init(int argc, char ** argv) {
+	
+	firstModel = new model();
 	// Die ganzen Argumente in test.properties werden eingelesen (wie Pfade für result-directory (result_dir) und data-directory (data_dir))
 	// Diese Werte werden dann in dieses (this) Modell geschrieben
-	firstModel = new model();
-
     if (putils->parse_args_inf(argc, argv, this)) {
 	    return 1;
     }
+
 	if (putils->parse_args_est(argc, argv, firstModel)) {
 		return 1;
 	}
 
-	if (initFirstModel1()) {
-		printf("Hat leider nicht geworkt \n");
+	if (firstModel->initFirstModel()) {
+		printf("Throw exception in initFirstModel()!\n");
 		return 1;
 	}
 
+
+	//delete firstModel;
+	//firstModel = new model();
+	//if (putils->parse_args_est(argc, argv, firstModel)) {
+	//	return 1;
+	//}
+	if (firstModel->initNewModel(2, model_dir)) {
+		printf("Throw exception in initNewModel()!\n");
+		return 1;
+	}
+
+
+	/*
+	Hier sollen die ersten drei Modelle unabhängig(!) 
+	(sodass nur neue Vokabeln eingepflegt werden, wir aber keine counts beeinflussen)
+	voneinander trainiert werden
+
+	for(i=0;i<3;i++){
+		initNextModel(lastModel->pdata);
+	}
+	*/
+
 	if(init_inf()) {
-	    printf("Throw expectation in init_inf()!  \n");
+	    printf("Throw exception in init_inf()!  \n");
 		return 1; 
 	}
 
+
+	/*
+	So lange neue Daten vorliegen soll das nächste Modell
+	(unter Verwendung der alten Modell (Gewichte)) trainiert werden
+
+	while (new_data) {
+		trainNextModel(last_relevant_models[]) 
+	}
+	*/
+
 	if(inference()) {
-	    printf("Throw expectation in inference()!  \n");
+	    printf("Throw exception in inference()!  \n");
 		return 1; 
 	}
 
@@ -273,6 +306,8 @@ int Inference::initFirstModel() {
 	return 0;
 }
 
+// Das initialisiert das erste Modell auf Daten der ersten Epoche
+// Labels werden gesampled und counts gebildet
 int Inference::initFirstModel1() {
 	if (firstModel->initFirstModel()) {
 		printf("Throw exception in initFirstModel1()!\n");
@@ -822,8 +857,8 @@ int Inference::read_newData(string filename) {
 	char buff[BUFF_SIZE_LONG];
 
 	// Liest die Vokabeln der alten Trainingsdokumente ein und bildet daraus Maps
-	pmodelData->read_wordmap(model_dir + "wordmap.txt", word2id);  // map word2id
-    pmodelData->read_wordmap(model_dir + "wordmap.txt", id2word);  // map id2word
+	pmodelData->read_wordmap(model_dir +"2"+ "wordmap.txt", word2id);  // map word2id
+    pmodelData->read_wordmap(model_dir +"2"+ "wordmap.txt", id2word);  // map id2word
 
 	// read sentiment lexicon file
 	// Beachte: Dabei könnte man hier auch von einem anderen Lexicon als beim Training lesen

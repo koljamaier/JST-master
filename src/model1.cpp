@@ -40,6 +40,7 @@ model::model(void) {
 
 model::~model(void) {
 	if (putils) delete putils;
+	if (pdataset) delete pdataset; // added
 }
 
 
@@ -71,6 +72,7 @@ int model::init(int argc, char ** argv) {
 
 int model::initFirstModel() {
 	pdataset = new dataset(result_dir);
+	printf("Init first Model!\n");
 
 	if (sentiLexFile != "") {
 		if (pdataset->read_senti_lexicon((sentiLexFile).c_str())) {
@@ -101,12 +103,11 @@ int model::initFirstModel() {
 	if (estimate()) return 1; // sample counts and calculate new phi + save_model
 	delete_model_parameters();
 	fin.close();
-
 	return 0;
 }
 
-int model::initNewModel(model * pmodel, int epoch) {
-	pdataset = new dataset(result_dir);
+int model::initNewModel(int epoch, string model_dir) {
+	pdataset = new dataset(result_dir, model_dir);
 
 	if (sentiLexFile != "") {
 		if (pdataset->read_senti_lexicon((sentiLexFile).c_str())) {
@@ -116,14 +117,12 @@ int model::initNewModel(model * pmodel, int epoch) {
 		}
 		this->sentiLex = pdataset->sentiLex;
 	}
-
-	fin.open((data_dir + std::to_string(epoch) + ".txt").c_str(), ifstream::in);
+	fin.open((data_dir + std::to_string(epoch) + ".dat").c_str(), ifstream::in);
 	if (!fin) {
-		printf("Error! Cannot read dataset %s!\n", (data_dir + "1.txt").c_str());
+		printf("Error! Cannot read dataset %s!\n", (data_dir + std::to_string(epoch) +".dat").c_str());
 		return 1;
 	}
 
-	// Dort wird analyzeCorpus aufgerufen, um die Trainingsdaten zu verarbeiten
 	if (pdataset->read_dataStream1(fin)) {
 		printf("Throw exception in function read_dataStream()! \n");
 		delete pdataset;

@@ -78,6 +78,7 @@ public:
 	dataset();
 	dataset(string result_dir);
 	dataset(string result_dir, string model_dir); // added 
+	dataset::dataset(string result_dir, mapword2atr word2atr); // added
 	~dataset(void);
 	
 	int read_dataStream(ifstream& fin);
