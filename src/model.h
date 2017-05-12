@@ -149,6 +149,7 @@ private:
 
 	int init_estimate();
 	int estimate();
+	int estimate(int epoch); // epoch
 	int prior2beta();
 	int sampling(int m, int n, int& sentiLab, int& topic);
 	
@@ -163,6 +164,7 @@ private:
 
 	// save model parameter funtions 
 	int save_model(string model_name);
+	int save_model(string model_name, int epoch); // added
 	int save_model_tassign(string filename);
 	int save_model_pi_dl(string filename);
 	int save_model_theta_dlz(string filename);

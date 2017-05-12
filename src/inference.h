@@ -55,6 +55,7 @@ public:
 	int vocabSize;    // for trained model
 	int newNumDocs;   // for test set
 	int newVocabSize; // for test set
+	int time_slices; // added
 
 	vector<vector<vector<int> > > nlzw; // for trained model
 	vector<vector<int> > nlz;  // for trained model

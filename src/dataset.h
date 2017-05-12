@@ -56,6 +56,10 @@ public:
 	document ** pdocs; // store training data vocab ID (in pdocs sind alle alten Trainings-Dokumente als ID-Wort-Sentiment-Paare gespeichert)
 	document ** _pdocs; // only use for inference, i.e., for storing the new/test vocab ID (Hier werden also die Word-IDs nur bezüglich des neuen Docs gespeichert; unabhängig davon, ob ein Wort schon in den Trainingsdaten gesehen wurde (es bekommt also dennoch eine "neue" Word-ID))
     ifstream fin;
+
+	// added
+	//document * pdoc;
+	//document * _pdoc;
 	
 	string data_dir; // path to data
 	string result_dir; // result model path

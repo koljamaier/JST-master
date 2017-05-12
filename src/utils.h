@@ -55,6 +55,7 @@ private:
 	string sentiLexFile;
     string datasetFile;
     string configfile;
+	int time_slices; // added
 
     int numSentiLabs;
 	int numTopics;

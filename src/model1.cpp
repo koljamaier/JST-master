@@ -100,13 +100,14 @@ int model::initFirstModel() {
 	id2word = pdataset->id2word; // "2984 access"
 	init_model_parameters(); // init counts like nlzw=0 etc.
 	if (init_estimate()) return 1; // Für die Worte werden zunächst labels zufällig gewählt. Davon ausgehend kann man dann estimate() aufrufen und Gibbs-Samplen
-	if (estimate()) return 1; // sample counts and calculate new phi + save_model
+	if (estimate(1)) return 1; // sample counts and calculate new phi + save_model
 	delete_model_parameters();
 	fin.close();
 	return 0;
 }
 
 int model::initNewModel(int epoch, string model_dir) {
+	printf("Init Model for time slice: %d\n", epoch);
 	pdataset = new dataset(result_dir, model_dir);
 
 	if (sentiLexFile != "") {
@@ -124,16 +125,16 @@ int model::initNewModel(int epoch, string model_dir) {
 	}
 
 	if (pdataset->read_dataStream1(fin)) {
-		printf("Throw exception in function read_dataStream()! \n");
+		printf("Throw exception in function read_dataStream1()! \n");
 		delete pdataset;
 		return 1;
 	}
 
 	word2atr = pdataset->word2atr; // "access {2984, sentiLabel}" glob. Voc
-	id2word = pdataset->id2word; // "2984 access"
+	id2word = pdataset->id2word; // "2984 access" glob. Voc
 	init_model_parameters(); // init counts like nlzw=0 etc.
 	if (init_estimate()) return 1; // Für die Worte werden zunächst labels zufällig gewählt. Davon ausgehend kann man dann estimate() aufrufen und Gibbs-Samplen
-	if (estimate()) return 1; // sample counts and calculate new phi etc.
+	if (estimate(epoch)) return 1; // sample counts and calculate new phi + save_model
 	delete_model_parameters();
 	fin.close();
 
@@ -309,7 +310,7 @@ int model::init_model_parameters()
 	// incorporate prior information into beta
 	this->prior2beta();
 	this->set_gamma();
-
+	printf("Model counts alive! \n");
 	return 0;
 }
 
@@ -419,6 +420,29 @@ int model::save_model(string model_name) {
 		return 1;
 
 	if (save_model_others(result_dir + model_name + others_suffix)) 
+		return 1;
+
+	return 0;
+}
+
+int model::save_model(string model_name, int epoch) {
+
+	if (save_model_tassign(result_dir + std::to_string(epoch)+model_name + tassign_suffix))
+		return 1;
+
+	if (save_model_twords(result_dir + std::to_string(epoch)+ model_name + twords_suffix))
+		return 1;
+
+	if (save_model_pi_dl(result_dir + std::to_string(epoch) + model_name + pi_suffix))
+		return 1;
+
+	if (save_model_theta_dlz(result_dir + std::to_string(epoch) + model_name + theta_suffix))
+		return 1;
+
+	if (save_model_phi_lzw(result_dir + std::to_string(epoch) + model_name + phi_suffix))
+		return 1;
+
+	if (save_model_others(result_dir + std::to_string(epoch) + model_name + others_suffix))
 		return 1;
 
 	return 0;
@@ -604,7 +628,7 @@ int model::init_estimate() {
 		l[m].resize(docLength);
 
         for (int t = 0; t < docLength; t++) {
-		    if (pdataset->pdocs[m]->words[t] < 0) { // Keine Ahnung wann das eintreten soll
+		    if (pdataset->pdocs[m]->words[t] < 0) {
 			    printf("ERROR! word token %d has index smaller than 0 at doc[%d][%d]\n", pdataset->pdocs[m]->words[t], m, t);
 				return 1;
 			}
@@ -630,6 +654,7 @@ int model::init_estimate() {
 			nd[m]++;
 			ndl[m][sentiLab]++;
 			ndlz[m][sentiLab][topic]++;
+			printf("Test pdataset->pdocs[m]->words[t]: %d\n", pdataset->pdocs[m]->words[t]);
 			nlzw[sentiLab][topic][pdataset->pdocs[m]->words[t]]++;
 			nlz[sentiLab][topic]++;
         }
@@ -683,6 +708,53 @@ int model::estimate() {
 	
 	return 0;
 }
+
+
+// Hier geschieht viel bzgl. der Berechnung (bzw. hier werden alle wichtigen Funktionen dafür gecallt)
+// Das Modell wird auf die Daten trainiert (Parameter Phi,... werden estimated)
+int model::estimate(int epoch) {
+
+	int sentiLab, topic;
+	mapname2labs::iterator it;
+
+	printf("Sampling %d iterations!\n", niters); // niters wird über die config reingegeben und schreibt vor wieviele Iterationen durchgeführt werden sollen
+	for (liter = 1; liter <= niters; liter++) {
+		printf("Iteration %d ...\n", liter);
+		for (int m = 0; m < numDocs; m++) {
+			for (int n = 0; n < pdataset->pdocs[m]->length; n++) {
+				// Hier werden auch die counts geupdatet (wie z.B. nlzw)
+				// Auf diesen neuen counts können dann die Parameter estimated werden (z.B. compute_phi_lzw())
+				sampling(m, n, sentiLab, topic);
+				l[m][n] = sentiLab;
+				z[m][n] = topic;
+			}
+		}
+
+		if (updateParaStep > 0 && liter % updateParaStep == 0) {
+			this->update_Parameters();
+		}
+
+		if (savestep > 0 && liter % savestep == 0) {
+			if (liter == niters) break;
+
+			printf("Saving the model at iteration %d ...\n", liter);
+			compute_pi_dl();
+			compute_theta_dlz();
+			compute_phi_lzw();
+			//save_model(putils->generate_model_name(liter));
+		}
+	}
+
+	printf("Gibbs sampling completed!\n");
+	printf("Saving the final model!\n");
+	compute_pi_dl();
+	compute_theta_dlz();
+	compute_phi_lzw();
+	save_model(putils->generate_model_name(-1), epoch);
+
+	return 0;
+}
+
 
 // Neue Werte für Topic und Sentilabel werden für das Wort n in Document m gesamplet
 int model::sampling(int m, int n, int& sentiLab, int& topic) {

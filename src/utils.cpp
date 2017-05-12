@@ -282,7 +282,7 @@ int utils::parse_args_inf(int argc, char ** argv, Inference * pmodel_inf) {
 		
 	if (sentiLexFile != "") 
 		pmodel_inf->sentiLexFile = sentiLexFile;
-	
+
 	if (datasetFile != "")
 		pmodel_inf->datasetFile = datasetFile;
 	else {
@@ -332,6 +332,7 @@ int utils::parse_args_inf(int argc, char ** argv, Inference * pmodel_inf) {
 	if (alpha > 0.0) pmodel_inf->_alpha = alpha; 
 	if (beta > 0.0) pmodel_inf->_beta = beta;
 	if (gamma > 0.0) pmodel_inf->_gamma = gamma;
+	if (time_slices > 0.0) pmodel_inf->time_slices = time_slices; // added
 
     return 0;
 }
@@ -476,6 +477,8 @@ int utils::read_config_file(string filename) {
 				gamma = atof(optval.c_str());
 			else if (optstr == "model")  
 				model_name = optval;
+			else if (optstr == "timeSlices") // added
+				time_slices = atoi(optval.c_str());
 		}
 		
 		fclose(fin);

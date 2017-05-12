@@ -64,6 +64,7 @@ int main(int argc, char ** argv) {
 		}
 		
 		// Hier wird die estimation auf den Trainingsdaten durchgeführt
+		// gleichbedeutend mit jst.execute()
 		if(jst.initFirstModel()) return 1;
 	}
 

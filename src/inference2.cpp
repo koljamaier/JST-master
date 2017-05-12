@@ -64,22 +64,17 @@ int Inference::init(int argc, char ** argv) {
 	if (putils->parse_args_est(argc, argv, firstModel)) {
 		return 1;
 	}
-
+	
 	if (firstModel->initFirstModel()) {
 		printf("Throw exception in initFirstModel()!\n");
 		return 1;
 	}
 
 
-	//delete firstModel;
-	//firstModel = new model();
-	//if (putils->parse_args_est(argc, argv, firstModel)) {
-	//	return 1;
-	//}
-	if (firstModel->initNewModel(2, model_dir)) {
+	/*if (firstModel->initNewModel(2, model_dir)) {
 		printf("Throw exception in initNewModel()!\n");
 		return 1;
-	}
+	}*/
 
 
 	/*
@@ -88,14 +83,21 @@ int Inference::init(int argc, char ** argv) {
 	voneinander trainiert werden
 
 	for(i=0;i<3;i++){
-		initNextModel(lastModel->pdata);
+		initNewModel(epoch, model_dir);
 	}
 	*/
 
-	if(init_inf()) {
+	for (size_t epoch = 2; epoch < time_slices+1; epoch++) {
+		if (firstModel->initNewModel(epoch, model_dir)) {
+			printf("Throw exception in initNewModel(), NO %d!\n", epoch);
+			return 1;
+		}
+	}
+
+	/*if(init_inf()) {
 	    printf("Throw exception in init_inf()!  \n");
 		return 1; 
-	}
+	}*/
 
 
 	/*
@@ -107,10 +109,10 @@ int Inference::init(int argc, char ** argv) {
 	}
 	*/
 
-	if(inference()) {
+	/*if(inference()) {
 	    printf("Throw exception in inference()!  \n");
 		return 1; 
-	}
+	}*/
 
     return 0;
 }
@@ -857,8 +859,8 @@ int Inference::read_newData(string filename) {
 	char buff[BUFF_SIZE_LONG];
 
 	// Liest die Vokabeln der alten Trainingsdokumente ein und bildet daraus Maps
-	pmodelData->read_wordmap(model_dir +"2"+ "wordmap.txt", word2id);  // map word2id
-    pmodelData->read_wordmap(model_dir +"2"+ "wordmap.txt", id2word);  // map id2word
+	pmodelData->read_wordmap(model_dir + "wordmap.txt", word2id);  // map word2id
+    pmodelData->read_wordmap(model_dir + "wordmap.txt", id2word);  // map id2word
 
 	// read sentiment lexicon file
 	// Beachte: Dabei könnte man hier auch von einem anderen Lexicon als beim Training lesen

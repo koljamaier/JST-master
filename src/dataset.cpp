@@ -234,10 +234,10 @@ int dataset::analyzeCorpus(vector<string>& docs) {
 		printf("ERROR! Can not read wordmap file %s!\n", wordmapfile.c_str());
 		return 1;
 	}
-	if (write_wordmap(result_dir +"1"+ wordmapfile, word2atr)) {
+	/*if (write_wordmap(result_dir +"1"+ wordmapfile, word2atr)) {
 		printf("ERROR! Can not write wordmap file %s!\n", wordmapfile.c_str());
 		return 1;
-	}
+	}*/
 
 	docs.clear();
 	return 0;
@@ -421,7 +421,7 @@ int dataset::read_newData(vector<string>& docs) {
 				id2_id.insert(pair<int, int>(new_glob_id, _id)); // Ein Paar bestehend aus glob. Wort-ID und lok. Wort-ID der Map wird eingefügt
 				_id2id.insert(pair<int, int>(_id, new_glob_id)); // Ein Paar bestehend aus lok. Wort-ID und glob. Wort-ID der Map wird eingefügt
 
-																 //int new_loc_id = id2_id.size();
+				//int new_loc_id = id2_id.size();
 				doc.push_back(new_glob_id);
 				_doc.push_back(_id);
 
@@ -431,7 +431,7 @@ int dataset::read_newData(vector<string>& docs) {
 				int _id;
 				_it = id2_id.find(it->second); // Wir suchen nach der glob. Word-ID
 				if (_it == id2_id.end()) { // Das Wort ist zwar im glob. Voc. bekannt, aber die entsprechende Word-ID wurde noch nicht in die lokale id2_id Map eingepflegt
-					_id = id2_id.size(); // Die letzte Stelle der Map wo die Word-ID eingepflegt wird
+					_id = id2_id.size(); // Die letzte Stelle der lokalen Map wo die Word-ID eingepflegt wird
 					id2_id.insert(pair<int, int>(it->second, _id)); // Ein Paar bestehend aus glob. Wort-ID und loc. Wort-ID der Map wird eingefügt
 					_id2id.insert(pair<int, int>(_id, it->second));
 				}
@@ -442,7 +442,7 @@ int dataset::read_newData(vector<string>& docs) {
 				doc.push_back(it->second); // Hier wird die glob. Word-ID gepusht
 				_doc.push_back(_id); // Hier wird der Index/Stelle (in der Map id2_id) der Word-ID gepusht. Dies entspricht wiederum der Word-ID für nur die neuen Dokumente
 
-									 // 'word2atr' is specific to new/test dataset (es gilt also nur für loc. Voc.!!!)
+				// 'word2atr' is specific to new/test dataset (es gilt also nur für loc. Voc.!!!)
 				itatr = word2atr.find(strtok.token(k).c_str());
 				int priorSenti = -1;
 				if (itatr == word2atr.end()) {
@@ -466,7 +466,6 @@ int dataset::read_newData(vector<string>& docs) {
 		  // allocate memory for new doc
 		document * pdoc = new document(doc, priorSentiLabels, "inference");
 		document * _pdoc = new document(_doc, priorSentiLabels, "inference");
-
 		pdoc->docID = strtok.token(0).c_str();
 		_pdoc->docID = strtok.token(0).c_str();
 
@@ -476,12 +475,17 @@ int dataset::read_newData(vector<string>& docs) {
 	} // end for: Alle Dokumente wurden eingelesen & bearbeitet
 
 	  // update number of new words
-	vocabSize = id2_id.size(); // Wir beziehen uns hier also tatsächlich nur auf die bekannten (unterschiedliche) Vokabeln aus den Trainingsdaten. In .others werden diese als "newVocabSize" aufgelistet
+	vocabSize = word2id.size();
 	aveDocLength = corpusSize / numDocs;
 
 	// Neue Wordmap speichern
-	if (write_wordmap(result_dir + "2"+wordmapfile, word2atr)) {
+	if (write_wordmap1(result_dir +wordmapfile, word2id)) {
 		printf("ERROR! Can not write wordmap file %s!\n", wordmapfile.c_str());
+		return 1;
+	}
+
+	if (read_wordmap(result_dir + wordmapfile, id2word)) {
+		printf("ERROR! Can not read wordmap file %s!\n", wordmapfile.c_str());
 		return 1;
 	}
 
