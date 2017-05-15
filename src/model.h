@@ -89,6 +89,19 @@ public:
 	int excute_model();
 	int initFirstModel(); // added
 	int initNewModel(int epoch, string model_dir); // added
+
+	// added
+	vector<vector<double> > new_p; // for posterior
+	vector<vector<int> > new_z;
+	vector<vector<int> > new_l;
+	vector<int> new_nd; // number of words in a document d
+	vector<vector<int> > new_ndl; // counter for sentiment-state per document (wieviele counts an Senti-Labels hat also ein gewisses Doc)
+	vector<vector<vector<int> > > new_ndlz; // counter for sentiment-topic-state per document
+	vector<vector<vector<int> > > new_nlzw; // counter for individual word-to-topic-sentiment assignment (wie oft taucht Wort w mit diesem topic&sentiment auf)
+	vector<vector<int> > new_nlz; // counter for sentilabels per topic
+	vector<vector<double> > newpi_dl; // size: (numDocs x L)
+	vector<vector<vector<double> > > newtheta_dlz; // size: (numDocs x L x T) 
+	vector<vector<vector<double> > > newphi_lzw; // size: (L x T x V)
 	
 
 private:
@@ -133,6 +146,7 @@ private:
 	/************************* Functions ***************************/
 	int set_gamma();
 	int init_model_parameters();
+	int init_model_parameters1();
 	inline int delete_model_parameters() {
 		numDocs = 0;
 		vocabSize = 0;
@@ -148,15 +162,20 @@ private:
 	}
 
 	int init_estimate();
+	int init_estimate1();
 	int estimate();
 	int estimate(int epoch); // epoch
+	int estimate1(int epoch);
 	int prior2beta();
+	int prior2beta1(); // added
 	int sampling(int m, int n, int& sentiLab, int& topic);
+	int sampling1(int m, int n, int& sentiLab, int& topic);
 	
 	// compute parameter functions
 	void compute_pi_dl(); 
 	void compute_theta_dlz(); 
 	void compute_phi_lzw(); 
+	void compute_phi_lzw1(); // added
 	
 	// update parameter functions
 	void init_parameters();
@@ -164,13 +183,17 @@ private:
 
 	// save model parameter funtions 
 	int save_model(string model_name);
+	int save_model1(string model_name);
 	int save_model(string model_name, int epoch); // added
+	int save_model1(string model_name, int epoch);
 	int save_model_tassign(string filename);
 	int save_model_pi_dl(string filename);
 	int save_model_theta_dlz(string filename);
 	int save_model_phi_lzw(string filename);
+	int save_model_phi_lzw1(string filename);
 	int save_model_others(string filename);
 	int save_model_twords(string filename);
+	int save_model_twords1(string filename);
 };
 
 #endif

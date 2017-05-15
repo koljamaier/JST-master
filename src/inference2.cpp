@@ -146,7 +146,7 @@ int Inference::init_inf() {
 		return 1;
 	}
 
-	// Hier werden sämtliche count-parameter initialisiert (z.B. nlzw)
+	// Hier werden sämtliche count-parameter initialisiert (z.B. nlzw=0)
 	if (init_parameters()) {
 		printf("Throw exception in init_parameters!\n");
 		return 1;
@@ -650,7 +650,7 @@ int Inference::inference() {
 }
 
 // Hier werden sämtliche count-parameters für die 
-// neuen Daten (wie z.B. new_nlzw) initialisiert. 
+// neuen Daten (wie z.B. new_nlzw=0) initialisiert. 
 // Auch der Prior durch Lambda (Sentilex) wird in Beta einmodelliert
 int Inference::init_parameters() {
 	
