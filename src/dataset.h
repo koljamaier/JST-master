@@ -75,7 +75,6 @@ public:
 	int aveDocLength; // average document length
 	int vocabSize; // Zählt die Anzahl an unterschiedlichen Worten/Vokabeln über alle Dokumente 
 	int newVocabSize; // added; Zählt die Anzahl an unterschiedlichen Worten/Vokabeln über das neue Dokument
-	int newOldVocabsize; // added; zählt neue vokabeln und wieviele der bereits bekannten aufgetreten sind
 	int corpusSize; // Gibt die Anzahl an allen Wörter in allen Dokumenten an (auch Duplikate)
 	
 	vector<string> docs; // for buffering dataset

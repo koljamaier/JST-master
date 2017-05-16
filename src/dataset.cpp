@@ -367,7 +367,6 @@ int dataset::read_newData(vector<string>& docs) {
 	_pdocs = new document*[numDocs];
 	vocabSize = 0;
 	corpusSize = 0;
-	int number_oldwords = 0; // added
 
 	// process each document in the new data
 	for (int i = 0; i < numDocs; i++) {
@@ -432,7 +431,6 @@ int dataset::read_newData(vector<string>& docs) {
 				int _id;
 				_it = id2_id.find(it->second); // Wir suchen nach der glob. Word-ID
 				if (_it == id2_id.end()) { // Das Wort ist zwar im glob. Voc. bekannt, aber die entsprechende Word-ID wurde noch nicht in die lokale id2_id Map eingepflegt
-					number_oldwords++;
 					_id = id2_id.size(); // Die letzte Stelle der lokalen Map wo die Word-ID eingepflegt wird
 					id2_id.insert(pair<int, int>(it->second, _id)); // Ein Paar bestehend aus glob. Wort-ID und loc. Wort-ID der Map wird eingefügt
 					_id2id.insert(pair<int, int>(_id, it->second));
@@ -479,7 +477,6 @@ int dataset::read_newData(vector<string>& docs) {
 	  // update number of new words
 	vocabSize = word2id.size();
 	newVocabSize = newWords.size();
-	newOldVocabsize = newVocabSize + number_oldwords;
 	aveDocLength = corpusSize / numDocs;
 
 	// Neue Wordmap speichern

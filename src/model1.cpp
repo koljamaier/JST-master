@@ -316,7 +316,7 @@ int model::init_model_parameters()
 
 int model::init_model_parameters1()
 {
-	int vocabSize1 = pdataset->newOldVocabsize;
+	int vocabSize1 = pdataset->id2_id.size();
 	numDocs = pdataset->numDocs;
 	corpusSize = pdataset->corpusSize;
 	aveDocLength = pdataset->aveDocLength;
@@ -524,7 +524,7 @@ int model::prior2beta1() {
 		}
 	}
 
-	int vocabSize1 = pdataset->newOldVocabsize;
+	int vocabSize1 = pdataset->id2_id.size();
 	for (int l = 0; l < numSentiLabs; l++) {
 		for (int z = 0; z < numTopics; z++) {
 			betaSum_lz[l][z] = 0.0;
@@ -711,6 +711,7 @@ int model::save_model_twords(string filename) {
     if (twords > vocabSize) {
 	    twords = vocabSize; // print out entire vocab list
     }
+	twords = vocabSize; // added
     
     mapid2word::iterator it;
    
@@ -992,7 +993,6 @@ int model::init_estimate1() {
 			nd[m]++;
 			ndl[m][sentiLab]++;
 			ndlz[m][sentiLab][topic]++;
-			//printf("Test pdataset->pdocs[m]->words[t]: %d\n", pdataset->pdocs[m]->words[t]);
 			nlzw[sentiLab][topic][pdataset->_pdocs[m]->words[t]]++;
 			nlz[sentiLab][topic]++;
 		}
@@ -1076,11 +1076,11 @@ int model::estimate(int epoch) {
 		if (savestep > 0 && liter % savestep == 0) {
 			if (liter == niters) break;
 
-			printf("Saving the model at iteration %d ...\n", liter);
+			//printf("Saving the model at iteration %d ...\n", liter);
 			compute_pi_dl();
 			compute_theta_dlz();
 			compute_phi_lzw();
-			save_model(putils->generate_model_name(liter));
+			//save_model(putils->generate_model_name(liter));
 		}
 	}
 
@@ -1119,12 +1119,13 @@ int model::estimate1(int epoch) {
 
 		if (savestep > 0 && liter % savestep == 0) {
 			if (liter == niters) break;
+			printf("Iteration %d ...\n", liter); // added
 
-			printf("Saving the model at iteration %d ...\n", liter);
+			//printf("Saving the model at iteration %d ...\n", liter);
 			compute_pi_dl();
 			compute_theta_dlz();
 			compute_phi_lzw1();
-			save_model1(putils->generate_model_name(liter));
+			//save_model1(putils->generate_model_name(liter));
 		}
 	}
 
@@ -1133,9 +1134,9 @@ int model::estimate1(int epoch) {
 	compute_pi_dl();
 	compute_theta_dlz();
 	compute_phi_lzw1();
-	// start mapping back
+	// mapping back
 	vector<vector<vector<double> > > phi_lzw1(phi_lzw); // copy
-	vocabSize = pdataset->vocabSize;
+	vocabSize = pdataset->vocabSize; // overall vocabsize
 	phi_lzw.resize(numSentiLabs);
 	for (int l = 0; l < numSentiLabs; l++) {
 		phi_lzw[l].resize(numTopics);

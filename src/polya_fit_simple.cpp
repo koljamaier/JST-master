@@ -69,7 +69,7 @@ int polya_fit_simple(int ** data, double * alpha, int _K, int _nSample) {
 	}
 
 	// simple fix point iteration
-	printf("Optimising parameters...\n");
+	//printf("Optimising parameters...\n");
 	for (i = 0; i < polya_iter; i++) {  // reset sum_alpha_old
 		sum_alpha_old = 0;
 		// update old_alpha after each iteration
@@ -110,14 +110,14 @@ int polya_fit_simple(int ** data, double * alpha, int _K, int _nSample) {
 
 		// check whether to terminate the whole iteration
 		if(sat_state) {
-			cout<<"Terminated at iteration: "<<i<<endl;
+			//cout<<"Terminated at iteration: "<<i<<endl;
 			break;
 		}
 		else if(i == polya_iter-1)  cout<<"Haven't converged! Terminated at iteration: "<<i+1<<endl;
 
 	}
 
-	printf("Optimisation done!\n");
+	//printf("Optimisation done!\n");
 
     return 0;
 }
