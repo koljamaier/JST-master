@@ -42,7 +42,10 @@ USA
 
 using namespace std; 
 
-
+/// <summary>
+/// This class implements the dJST model. Several JST models (<see cref="T:model" />)
+/// are trained and combined over time.
+/// </summary>
 class Inference {
 
 public:
@@ -136,9 +139,25 @@ public:
 	int init_parameters();
     
 	//added
-	int initNewModel(int epoch);
+	/// <summary>
+	/// Initializes the first model. For this, data is read at
+	/// the first epoch. The corpus is analyzed and model parammeters
+	/// get initialized. For further detail how the data is analyzed
+	/// refer to <see cref="T:dataset" />
+	/// </summary>
+	/// <returns></returns>
 	int initFirstModel();
-	int initFirstModel1();
+
+	/// <summary>
+	/// Initializes a new JST model for <paramref name="epoch" /> based on the
+	/// global vocabulary known from previous epochs. The global vocabulary is extended by new words.
+	/// The models initiated in this function form the base models for the dJST model.
+	/// Note: The model parameters from previous don't influence each other in this function!
+	///		  The models are trained separately in this function!
+	/// </summary>
+	/// <param name="epoch">The epoch.</param>
+	/// <returns></returns>
+	int initNewModel(int epoch);
 
 	int read_newData(string filename); // filename = data_dir + datasetFile
 	int read_model_setting(string filename);

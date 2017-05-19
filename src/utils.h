@@ -35,6 +35,7 @@ USA
 using namespace std;
 
 // for sorting word probabilitys
+/// <exclude />
 struct sort_pred {
     bool operator()(const std::pair<int,double> &left, const std::pair<int,double> &right) {
 	    return left.second > right.second;
@@ -44,6 +45,10 @@ struct sort_pred {
 class model;
 class Inference;
 
+/// <summary>
+/// This class is used to 1) parse the command line arguments
+/// and 2) read out the parameters specified in the corresponding .properties file.
+/// </summary>
 class utils {
 private:
 	int model_status;
@@ -72,13 +77,17 @@ public:
 	utils();
 		
     // parse command line arguments
+
     int parse_args(int argc, char ** argv, int&  model_status);
-  	int parse_args_est(int argc, char ** argv, model * pmodel);
-	int parse_args_est1(int argc, char ** argv, Inference * pmodel);
+	/// <summary>
+	/// First reads the command line arguments. Then the parameters
+	/// from the specified .properties file will be read into the model (paths, parameters,...).
+	/// </summary>
+	/// <returns></returns>
+	int parse_args_est(int argc, char ** argv, model * pmodel);
 	int parse_args_inf(int argc, char ** argv, Inference * pmodel_inf);
-	int parse_args_inf1(int argc, char ** argv, Inference * pmodel_inf);
     
-    // read configuration file
+    // read configuration file (e.g. test.properties)
 	int read_config_file(string configfile);
   
     // generate the model name for the current iteration

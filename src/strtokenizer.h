@@ -28,7 +28,7 @@
 #include <vector>
 
 using namespace std;
-
+/// <exclude />
 class strtokenizer {
 protected:
     vector<string> tokens;

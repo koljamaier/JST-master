@@ -1,6 +1,7 @@
 /**********************************************************************
 		       dynamic Joint Sentiment-Topic (dJST) Model
 ***********************************************************************/
+
    
 #include "inference.h"
 using namespace std;
@@ -65,6 +66,8 @@ int Inference::init(int argc, char ** argv) {
 		return 1;
 	}
 	
+	// Das initialisiert das erste Modell auf Daten der ersten Epoche
+	// Labels werden gesampled und counts gebildet
 	if (firstModel->initFirstModel()) {
 		printf("Throw exception in initFirstModel()!\n");
 		return 1;
@@ -233,7 +236,7 @@ int Inference::initFirstModel() {
 	}
 	fin.close();
 	// Dort wird analyzeCorpus aufgerufen, um die Trainingsdaten zu verarbeiten
-	if (pnewData->read_dataStream1(fin)) {
+	if (pnewData->read_dataStream(fin)) {
 		printf("Throw exception in function read_dataStream()! \n");
 		delete pnewData;
 		return 1;
@@ -305,16 +308,6 @@ int Inference::initFirstModel() {
 		}
 	}
 
-	return 0;
-}
-
-// Das initialisiert das erste Modell auf Daten der ersten Epoche
-// Labels werden gesampled und counts gebildet
-int Inference::initFirstModel1() {
-	if (firstModel->initFirstModel()) {
-		printf("Throw exception in initFirstModel1()!\n");
-		return 1;
-	}
 	return 0;
 }
 

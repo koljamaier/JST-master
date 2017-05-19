@@ -34,14 +34,33 @@ USA
 using namespace std;
 
 
-struct Word_atr { 
-	int id; // vocabulary index
-	int polarity; // sentiment label
+/// <summary>
+/// Holds the Word-ID and the corresponding sentiment label for that word
+/// </summary>
+struct Word_atr {
+	/// <summary>
+	/// vocabulary index
+	/// </summary>
+	int id;
+	/// <summary>
+	/// sentiment label
+	/// </summary>
+	int polarity;
 };
 
-struct Word_Prior_Attr { 
-	int id; // prior sentiment label (Das Label welches also am "wahrscheinlichsten" ist. Falls die labDist=[0.05 0.9 0.05] wäre, dann wäre id=1
-	vector<double> labDist; // label distribution
+/// <summary>
+/// Holds the prior sentiment information for a word
+/// </summary>
+struct Word_Prior_Attr {
+	/// <summary>
+	/// prior sentiment label; that is the label which is most probable
+	/// in the prior labDist. For instance, if labDist=[0.05 0.9 0.05], then id=1
+	/// </summary>
+	int id;
+	/// <summary>
+	/// The label distribution
+	/// </summary>
+	vector<double> labDist;
 };
 
 // map of words/terms [string => int]

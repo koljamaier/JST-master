@@ -34,14 +34,24 @@ USA
 #include <iostream>
 using namespace std; 
 
-
-// Speichert word-ids und deren prior-senti-label für ein einzelnes Dokument.
-// dataset.cpp speichert dagegen mehrere dieser document ab
+/// <summary>
+/// Saves word ids and their corresponding prior-senti-labels for one single document.
+/// In contrast, <see cref="T:dataset" /> saves several instances of <see cref="T:document" /> 
+/// </summary>
 class document {
 
 public:
-	int * words; // Ein int-array aus word-ids. Entspricht dem gesamten Dokument (Wörter können auch doppelt vorkommen)
-	int * priorSentiLabels; // Falls ein Prior-Sentiment (aus mpqa) für das Wort vorliegt, so wird dieser als int codiert
+	/// <summary>
+	/// int-array that saves the word-ids. This represents the encoded text file
+	/// </summary>
+	int * words;
+
+
+	/// <summary>
+	/// If there is a prior-sentiment (from the senti-lexicon) for the word,
+	/// it will be noted here
+	/// </summary>
+	int * priorSentiLabels;
 	string docID;
 	string rawstr; // Das Dokument als bloßer String
 	int length;

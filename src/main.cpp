@@ -40,8 +40,12 @@ using namespace std;
 void show_help();
 
 
+/// <summary>
+/// Entry point of the program. The model is trained
+/// according to the command arguments. For further details how to set them 
+/// refer to readme.txt
+/// </summary>
 int main(int argc, char ** argv) {
-
 	int model_status = MODEL_STATUS_UNKNOWN;
 	utils *putils = new utils();
 	model_status = putils->parse_args(argc, argv, model_status);
@@ -63,9 +67,7 @@ int main(int argc, char ** argv) {
 			return 1;
 		}
 		
-		// Hier wird die estimation auf den Trainingsdaten durchgeführt
-		// gleichbedeutend mit jst.execute()
-		if(jst.initFirstModel()) return 1;
+		if(jst.execute_model()) return 1;
 	}
 
 	else if (model_status == MODEL_STATUS_INF) {

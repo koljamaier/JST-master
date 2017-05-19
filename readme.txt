@@ -3,6 +3,7 @@
 *****************************************************
 
 (C) Copyright 2013, Chenghua Lin and Yulan He
+Modified work Copyright 2017 Kolja Maier
 
 Written by Chenghua Lin, University of Aberdeen, chenghua.lin@abdn.ac.uk, part of code
 is from http://gibbslda.sourceforge.net/.
@@ -44,6 +45,8 @@ C. INFERENCE
 
 D. Data format
 
+E. 
+
 E. References 
 
 
@@ -69,8 +72,6 @@ Outputs of jst estimation include the following files:
 	<iter>.phi     // contains the sentiment specific topic-word distributions
 	<iter>.theta   // contains the per-document sentiment specific topic proportions (gibt also für jedes Topic(!) die Sentimentverteilung aus)
 	<iter>.tassign // contains the sentiment label and topic assignments for words in training data
-
-	wordmap.txt:
 	
 ------------------------------------------------------------------------
 
@@ -116,3 +117,8 @@ E. References
 [2] Lin, C. and He, Y. Joint Sentiment/Topic Model for Sentiment Analysis, In Proceedings of the 18th ACM Conference on Information and Knowl- edge Management (CIKM), Hong Kong, China, 2009.
 
 
+------------------------------------------------------------------------
+
+- main
+- utils.h
+- model.h

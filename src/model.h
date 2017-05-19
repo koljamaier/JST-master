@@ -1,32 +1,3 @@
-/**********************************************************************
-		        Joint Sentiment-Topic (JST) Model
-***********************************************************************
-
-(C) Copyright 2013, Chenghua Lin and Yulan He
-
-Written by: Chenghua Lin, University of Aberdeen, chenghua.lin@abdn.ac.uk.
-Part of code is from http://gibbslda.sourceforge.net/.
-
-This file is part of JST implementation.
-
-JST is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free
-Software Foundation; either version 2 of the License, or (at your
-option) any later version.
-
-JST is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
-USA
-
-***********************************************************************/
-   
-
 #ifndef	_MODEL_H
 #define	_MODEL_H
 
@@ -49,16 +20,26 @@ USA
 #include "strtokenizer.h"
 
 using namespace std;
-
-
+/// <summary>
+/// Offers parameters and functions to train a single
+/// time slice JST model.
+/// </summary>
 class model {
 
 public:
 	model(void);
 	~model(void);
 
+	/// <summary>
+	/// word2atr holds the global vocabulary map (string, Word_atr)
+	/// </summary>
 	mapword2atr word2atr;
-	mapid2word id2word; 
+
+	/// <summary>
+	/// id2word holds the global vocabulary map (int, string)
+	/// Every word (string) holds a unique Word-ID (int)
+	/// </summary>
+	mapid2word id2word;
 	mapword2prior sentiLex; // <word, [senti lab, word prior distribution]>
 	
 	string data_dir;
@@ -84,13 +65,38 @@ public:
 	double _beta;
 	double _gamma;
 
-	// init functions
+
+
+	/// <summary>
+	/// This function loads the parameters specified in .properties file.
+	/// Internally it calls <see cref="T:utils"/>-><see cref="M:utils.parse_args_est"/>.
+	/// </summary>
+	/// <returns></returns>
 	int init(int argc, char ** argv);
-	int excute_model();
-	int initFirstModel(); // added
-	int initNewModel(int epoch, string model_dir); // added
+
+	/// <summary>
+	/// Trains the JST model on specified data set in .properties
+	/// </summary>
+	/// <returns></returns>
+	int execute_model();
+
+	/// <summary>
+	/// Initializes the first model for the dJST model.
+	/// The model will be trained on data collected for the first time step.
+	/// </summary>
+	/// <returns></returns>
+	int initFirstModel();
+
+
+	/// <summary>
+	/// Initializes a new model for the specified time slot <paramref name="epoch" />.
+	/// </summary>
+	/// <param name="epoch">The epoch on which the model will be trained.</param>
+	/// <returns></returns>
+	int initNewModel(int epoch, string model_dir);
 
 	// added
+	// Declaration of counts
 	vector<vector<double> > new_p; // for posterior
 	vector<vector<int> > new_z;
 	vector<vector<int> > new_l;
@@ -104,11 +110,22 @@ public:
 	vector<vector<vector<double> > > newphi_lzw; // size: (L x T x V)
 	
 
-private:
-	
+//private:
+	/// <summary>
+	/// Refer to <see cref="F:dataset.numDocs"/>.
+	/// </summary>
 	int numDocs;
+	/// <summary>
+	/// Refer to <see cref="F:dataset.vocabSize"/>.
+	/// </summary>
 	int vocabSize;
+	/// <summary>
+	/// Refer to <see cref="F:dataset.corpusSize"/>.
+	/// </summary>
 	int corpusSize;
+	/// <summary>
+	/// Refer to <see cref="F:dataset.corpusSize"/>.
+	/// </summary>
 	int aveDocLength;
 	
 	ifstream fin;	
@@ -145,8 +162,23 @@ private:
 	
 	/************************* Functions ***************************/
 	int set_gamma();
+
+	/// <summary>
+	/// Initializes model parameters like <see cref="F:model.numDocs" />.
+	/// Also the counts will be resized according to the current data.
+	/// </summary>
+	/// <returns></returns>
 	int init_model_parameters();
+
+	/// <summary>
+	/// Initializes the model parameters like <see cref="F:model.numDocs" />.
+	/// Also the counts will be resized according to the current data.
+	/// In contrast to <see cref="M:model.init_model_parameters" /> this method is designed
+	/// to work for continious data.
+	/// </summary>
+	/// <returns></returns>
 	int init_model_parameters1();
+
 	inline int delete_model_parameters() {
 		numDocs = 0;
 		vocabSize = 0;
@@ -161,20 +193,58 @@ private:
 		return 0;
 	}
 
+	/// <summary>
+	/// The model gets prepared for the training phase.
+	/// By this, the counts necessary for the Gibbs Sampler will be initialized.
+	/// </summary>
+	/// <returns></returns>
 	int init_estimate();
 	int init_estimate1();
+
+	/// <summary>
+	/// In this function the model is trained.
+	/// This includes the Gibbs Sampling procedure and the
+	/// re-estimation of the parameters (phi, pi,...) based
+	/// on the new sampled counts.
+	/// </summary>
+	/// <returns></returns>
 	int estimate();
-	int estimate(int epoch); // epoch
+
+	/// <summary>
+	/// A single model is trained like in <see cref="M:model.estimate" />.
+	/// The difference is that we only train on the data restricted at that
+	/// time <paramref name="epoch" />
+	/// </summary>
+	/// <returns></returns>
+	int estimate(int epoch);
 	int estimate1(int epoch);
 	int prior2beta();
 	int prior2beta1(); // added
+
+	/// <summary>
+	/// The Gibbs Sampling procedure is specified in this function.
+	/// New Topic- and Senti-Labels have been sampled after running this method.
+	/// </summary>
+	/// <returns></returns>
 	int sampling(int m, int n, int& sentiLab, int& topic);
 	int sampling1(int m, int n, int& sentiLab, int& topic);
 	
 	// compute parameter functions
-	void compute_pi_dl(); 
+	/// <summary>
+	/// Estimates the pi parameter based on the new samples.
+	/// </summary>
+	void compute_pi_dl();
+
+	/// <summary>
+	/// Estimates the theta parameter based on the new samples.
+	/// </summary>
 	void compute_theta_dlz(); 
+
+	/// <summary>
+	/// Estimates the phi parameter based on the new samples.
+	/// </summary>
 	void compute_phi_lzw(); 
+
 	void compute_phi_lzw1(); // added
 	
 	// update parameter functions

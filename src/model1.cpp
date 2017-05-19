@@ -1,12 +1,38 @@
 /**********************************************************************
-		        Joint Sentiment-Topic (JST) Model
-***********************************************************************/
+Joint Sentiment-Topic (JST) Model
+***********************************************************************
 
+(C) Copyright 2013, Chenghua Lin and Yulan He
+Modified work Copyright 2017 Kolja Maier
+
+Written by: Chenghua Lin, University of Aberdeen, chenghua.lin@abdn.ac.uk.
+Part of code is from http://gibbslda.sourceforge.net/.
+
+This file is part of JST implementation.
+
+JST is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.
+
+JST is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+USA
+
+***********************************************************************/
 
 #include "model.h"
 using namespace std;
 
-
+/// <summary>
+/// Initializes a new instance of the <see cref="T:model"/> class.
+/// </summary>
 model::model(void) {
 
 	wordmapfile = "wordmap.txt";
@@ -38,6 +64,9 @@ model::model(void) {
 }
 
 
+/// <summary>
+/// Finalizes an instance of the <see cref="T:model"/> class.
+/// </summary>
 model::~model(void) {
 	if (putils) delete putils;
 	if (pdataset) delete pdataset; // added
@@ -69,6 +98,7 @@ int model::init(int argc, char ** argv) {
 	
 	return 0;
 }
+
 
 int model::initFirstModel() {
 	pdataset = new dataset(result_dir);
@@ -141,7 +171,9 @@ int model::initNewModel(int epoch, string model_dir) {
 	return 0;
 }
 
-int model::excute_model() {
+
+
+int model::execute_model() {
 	pdataset = new dataset(result_dir);
 
 	if (sentiLexFile != "") {
@@ -1097,7 +1129,7 @@ int model::estimate(int epoch) {
 // Hier geschieht viel bzgl. der Berechnung (bzw. hier werden alle wichtigen Funktionen dafür gecallt)
 // Das Modell wird auf die Daten trainiert (Parameter Phi,... werden estimated)
 int model::estimate1(int epoch) {
-	numDocs = pdataset->numDocs;
+	// numDocs = pdataset->numDocs;
 	int sentiLab, topic;
 
 	printf("Sampling %d iterations!\n", niters); // niters wird über die config reingegeben und schreibt vor wieviele Iterationen durchgeführt werden sollen
@@ -1134,7 +1166,7 @@ int model::estimate1(int epoch) {
 	compute_pi_dl();
 	compute_theta_dlz();
 	compute_phi_lzw1();
-	// mapping back
+	// mapping back. this is the important difference to estimate(int epoch) func
 	vector<vector<vector<double> > > phi_lzw1(phi_lzw); // copy
 	vocabSize = pdataset->vocabSize; // overall vocabsize
 	phi_lzw.resize(numSentiLabs);
@@ -1234,6 +1266,7 @@ int model::sampling(int m, int n, int& sentiLab, int& topic) {
 
 
 // Neue Werte für Topic und Sentilabel werden für das Wort n in Document m gesamplet
+// Unterschied zu sampling(...): Wir fokusieren uns auf _pdocs also die lokale Codierung
 int model::sampling1(int m, int n, int& sentiLab, int& topic) {
 	// Sentiment und Topic aus der letzten Iteration
 	sentiLab = l[m][n];

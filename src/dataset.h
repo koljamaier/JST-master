@@ -41,14 +41,30 @@ USA
 using namespace std; 
 
 
+/// <summary>
+/// This class manages several <see cref="T:document" /> instances.
+/// </summary>
 class dataset {
 
 public:
-    mapword2atr word2atr; // globales Vokabular: speichert das gesamte(!) Vokabular/Alle Worte mit ID und Senti-Label
-	mapid2word id2word; // glob. Vokabular "2984 access"
+	/// <summary>
+	/// Mapping that saves words an their corresponding attributes (string, Word_atr)
+	/// </summary>
+	mapword2atr word2atr;
+
+	/// <summary>
+	/// Mapping between Word-ID and the word itself e.g. "2984 access"
+	/// </summary>
+	mapid2word id2word;
+
 	mapword2id word2id; // glob. Vokabular "access 2984"
 	mapword2prior sentiLex; // <word, polarity>
 	// added
+
+	/// <summary>
+	/// Mapping between local and global word id's.
+	/// This is needed to include new unseen words.
+	/// </summary>
 	map<int, int> id2_id; // lok. Vok. (glob_id, loc_id) Mapping zwischen glob und loc Word-IDs (für neue docs)
 	map<int, int> _id2id; // lok. Vok. Dieses Mapping bildet dagegen loc auf glob Word-IDs ab
 	vector<string> newWords;
@@ -57,10 +73,6 @@ public:
 	document ** _pdocs; // only use for inference, i.e., for storing the new/test vocab ID (Hier werden also die Word-IDs nur bezüglich des neuen Docs gespeichert; unabhängig davon, ob ein Wort schon in den Trainingsdaten gesehen wurde (es bekommt also dennoch eine "neue" Word-ID))
     ifstream fin;
 
-	// added
-	//document * pdoc;
-	//document * _pdoc;
-	
 	string data_dir; // path to data
 	string result_dir; // result model path
 	string wordmapfile;
@@ -71,11 +83,22 @@ public:
 	//string model_name;
 	//string data_dir;
 
+
+	/// <summary>
+	/// The number of docs found for the epoch
+	/// </summary>
 	int numDocs;
 	int aveDocLength; // average document length
-	int vocabSize; // Zählt die Anzahl an unterschiedlichen Worten/Vokabeln über alle Dokumente 
+	/// <summary>
+	/// The count of unique words over all documents for the epoch
+	/// </summary>
+	int vocabSize;
 	int newVocabSize; // added; Zählt die Anzahl an unterschiedlichen Worten/Vokabeln über das neue Dokument
-	int corpusSize; // Gibt die Anzahl an allen Wörter in allen Dokumenten an (auch Duplikate)
+	/// <summary>
+	/// The count of all words in the corpus (documents). 
+	/// Also duplicates will be counted.
+	/// </summary>
+	int corpusSize;
 	
 	vector<string> docs; // for buffering dataset
 		
@@ -88,6 +111,11 @@ public:
 	
 	int read_dataStream(ifstream& fin);
 	int read_dataStream1(ifstream& fin);
+	/// <summary>
+	/// This function analyzes the new corpus of documents.
+	/// It will process each word and include it into the mappings.
+	/// </summary>
+	/// <returns></returns>
 	int read_newData(vector<string>& docs);
 	int read_senti_lexicon(string sentiLexiconFileDir);
 	int analyzeCorpus(vector<string>& docs);
