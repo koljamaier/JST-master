@@ -1,0 +1,21 @@
+model_dir=C:\Users\kmr\Documents\JST-results\result\train\t2/
+model_name=00100
+data_dir=C:\Users\kmr\Downloads\JST-master\JST-master\data/
+datasetFile=MR1.dat
+result_dir=C:\Users\kmr\Documents\JST-results\result\test\t1/
+niters-inf=60
+savestep-inf=20
+
+------------------ Testset ** MR1.dat ** statistics ----------------------
+newNumDocs=1
+newCorpusSize=289
+newVocabSize=203
+numNewWords=0
+aveDocLength=289
+
+------------------ Loaded model settings ----------------------
+numSentiLabs=3
+numTopics=3
+numDocs=1
+corpusSize=0
+vocabSize=203
