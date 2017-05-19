@@ -5,6 +5,9 @@ With this, sentiment-topics can be analyzed over time to do trend analytics.
 ## Getting Started
 To compile the project type `make` in a shell. Alternatively you can import the project into Visual Studio.
 
+## Properties
+// TODO describe how to set the properties
+
 ### Estimation (JST)
 For training on a single dataset execute:
 `jst -est -config YOUR-PATH/train.properties`
