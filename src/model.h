@@ -110,7 +110,7 @@ public:
 	vector<vector<vector<double> > > newphi_lzw; // size: (L x T x V)
 	
 
-//private:
+private:
 	/// <summary>
 	/// Refer to <see cref="F:dataset.numDocs"/>.
 	/// </summary>

@@ -45,8 +45,6 @@ C. INFERENCE
 
 D. Data format
 
-E. 
-
 E. References 
 
 
@@ -115,10 +113,3 @@ E. References
 [1] Lin, C., He, Y., Everson, R. and Reuger, S. Weakly-supervised Joint Sentiment-Topic Detection from Text, IEEE Transactions on Knowledge and Data Engineering (TKDE), 2011.
 
 [2] Lin, C. and He, Y. Joint Sentiment/Topic Model for Sentiment Analysis, In Proceedings of the 18th ACM Conference on Information and Knowl- edge Management (CIKM), Hong Kong, China, 2009.
-
-
-------------------------------------------------------------------------
-
-- main
-- utils.h
-- model.h
