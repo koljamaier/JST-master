@@ -3,7 +3,7 @@ This project aims to extend the Joint Sentiment-Topic Model ([JST](https://githu
 With this, sentiment-topics can be analyzed over time to do trend analytics.
 
 ## Getting Started
-To compile the project type `make` in a shell.
+To compile the project type `make` in a shell. Alternatively you can import the project into Visual Studio.
 
 ### Estimation (JST)
 For training on a single dataset execute:
