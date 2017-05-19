@@ -51,7 +51,7 @@ The algorithm needs prior information on the sentiment-polarity of words. The se
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
 
 ## Acknowledgments
-* Fur further documentation on classes and functions see /Help
+* Fur further documentation on classes and functions see [Help](https://github.com/koljamaier/JST-master/tree/djst/Help)
 
 ## References
 * *Lin, He, Yulan and Lin, Chenghua and Gao, Wei and Wong, Kam-Fai Dynamic joint sentiment-topic model, ACM Transactions on Intelligent Systems and Technology, 2013.*
