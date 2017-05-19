@@ -48,7 +48,7 @@ The algorithm needs prior information on the sentiment-polarity of words. The se
 * **Kolja Maier** extension to dJST
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+This project is licensed under the GPL License - see the [LICENSE.md](LICENSE.md) file for details
 
 ## Acknowledgments
 * Fur further documentation on classes and functions see [Help](https://github.com/koljamaier/JST-master/tree/djst/Help)
