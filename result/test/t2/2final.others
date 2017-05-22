@@ -7,7 +7,7 @@ sentiLexFile=C:\Users\kmr\Downloads\JST-master\JST-master\data\mpqa.constraint
 numDocs=4
 corpusSize=78
 aveDocLength=19
-vocabSize=88
+vocabSize=65
 
 ---------------------- Model settings -----------------------
 numSentiLabs=3
@@ -15,6 +15,6 @@ numTopics=1
 liter=100
 savestep=20
 updateParaStep=50
-_alpha=0.183333
+_alpha=0.266667
 _beta=0.010000
-_gamma=0.183333
+_gamma=0.266667

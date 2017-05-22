@@ -65,6 +65,10 @@ public:
 	double _beta;
 	double _gamma;
 
+	// model parameters
+	vector<vector<double> > pi_dl; // size: (numDocs x L)
+	vector<vector<vector<double> > > theta_dlz; // size: (numDocs x L x T) 
+	vector<vector<vector<double> > > phi_lzw; // size: (L x T x V)
 
 
 	/// <summary>
@@ -87,7 +91,6 @@ public:
 	/// <returns></returns>
 	int initFirstModel();
 
-
 	/// <summary>
 	/// Initializes a new model for the specified time slot <paramref name="epoch" />.
 	/// </summary>
@@ -109,7 +112,6 @@ public:
 	vector<vector<vector<double> > > newtheta_dlz; // size: (numDocs x L x T) 
 	vector<vector<vector<double> > > newphi_lzw; // size: (L x T x V)
 	
-
 private:
 	/// <summary>
 	/// Refer to <see cref="F:dataset.numDocs"/>.
@@ -143,11 +145,6 @@ private:
 	vector<vector<double> > p;
 	vector<vector<int> > z;
 	vector<vector<int> > l;
-	
-	// model parameters
-	vector<vector<double> > pi_dl; // size: (numDocs x L)
-	vector<vector<vector<double> > > theta_dlz; // size: (numDocs x L x T) 
-	vector<vector<vector<double> > > phi_lzw; // size: (L x T x V)
 	
 	// hyperparameters 
 	vector<vector<double> > alpha_lz; // \alpha_tlz size: (L x T)

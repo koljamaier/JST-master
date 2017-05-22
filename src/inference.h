@@ -131,12 +131,18 @@ public:
 	vector<vector<vector<double> > > newtheta_dlz; // size: (numDocs x L x T) 
 	vector<vector<vector<double> > > newphi_lzw; // size: (L x T x V)
 
+	vector<vector<vector<vector<double> > > > sliding_window_phi; // added; size: (time_slices x L x T x V)
+	double window_weights[3] = { 0.2, 0.3, 0.5}; // added; das ist der µ-Parameter für die Zeitfenster-Gewichtung
+
 	// functions 
 	int init(int argc, char ** argv);
     int init_inf();
     int inference(); // inference for new (unseen) data based on previously trained model
     int inf_sampling(int m, int n, int& sentiLab, int& topic);
 	int init_parameters();
+
+	int init_parameters1(); // added
+	int init_model_parameters1(); // added; 
     
 	//added
 	/// <summary>
@@ -159,15 +165,21 @@ public:
 	/// <returns></returns>
 	int initNewModel(int epoch);
 
+	int trainNextModel(int epoch);
+
 	int read_newData(string filename); // filename = data_dir + datasetFile
 	int read_model_setting(string filename);
 	int load_model(string model_name);
 	int prior2beta(); // for incorporating prior information
+	int prior2beta2();
+
 
 	// compute model parameters
 	void compute_newpi();
 	void compute_newtheta();
 	int compute_newphi();
+
+	int compute_newbeta(); // added; soll das neue Beta berechnen (durch µ und E bzw. "sigma")
 
 	// save new data models
 	int save_model(string model_name);

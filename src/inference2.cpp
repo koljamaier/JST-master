@@ -72,45 +72,34 @@ int Inference::init(int argc, char ** argv) {
 		printf("Throw exception in initFirstModel()!\n");
 		return 1;
 	}
+	sliding_window_phi.push_back(firstModel->phi_lzw);
 
 
-	/*if (firstModel->initNewModel(2, model_dir)) {
-		printf("Throw exception in initNewModel()!\n");
-		return 1;
-	}*/
-
-
-	/*
-	Hier sollen die ersten drei Modelle unabhängig(!) 
-	(sodass nur neue Vokabeln eingepflegt werden, wir aber keine counts beeinflussen)
-	voneinander trainiert werden
-
-	for(i=0;i<3;i++){
-		initNewModel(epoch, model_dir);
-	}
-	*/
-
+	// Die ersten drei Modelle werden unabhängig voneinander trainiert
+	// (auf den ersten 3 Zeitschlitzen)
 	for (size_t epoch = 2; epoch < time_slices+1; epoch++) {
 		if (firstModel->initNewModel(epoch, model_dir)) {
 			printf("Throw exception in initNewModel(), NO %d!\n", epoch);
 			return 1;
 		}
+	sliding_window_phi.push_back(firstModel->phi_lzw);
 	}
-
-	/*if(init_inf()) {
-	    printf("Throw exception in init_inf()!  \n");
-		return 1; 
-	}*/
-
 
 	/*
 	So lange neue Daten vorliegen soll das nächste Modell
 	(unter Verwendung der alten Modell (Gewichte)) trainiert werden
 
 	while (new_data) {
-		trainNextModel(last_relevant_models[]) 
+	trainNextModel(last_relevant_models[])
 	}
 	*/
+
+	// **OLD** hier geht es zur Inferenz weiter
+	/*if(init_inf()) {
+	    printf("Throw exception in init_inf()!  \n");
+		return 1; 
+	}*/
+
 
 	/*if(inference()) {
 	    printf("Throw exception in inference()!  \n");
@@ -203,7 +192,6 @@ int Inference::init_inf() {
 			topic = (int)(((double)rand() / RAND_MAX) * numTopics);
 			if (topic == numTopics)  topic = numTopics - 1;
 			new_z[m][t] = topic;
-
 			new_nd[m]++;
 			new_ndl[m][sentiLab]++;
 			new_ndlz[m][sentiLab][topic]++;
@@ -212,6 +200,190 @@ int Inference::init_inf() {
 		}
 	}
 
+	return 0;
+}
+
+int Inference::trainNextModel(int epoch) {
+
+	pnewData = new dataset(result_dir, model_dir);
+
+	if (sentiLexFile != "") {
+		if (pnewData->read_senti_lexicon((sentiLexFile).c_str())) {
+			printf("Error! Cannot read sentiFile %s!\n", (sentiLexFile).c_str());
+			delete pnewData;
+			return 1;
+		}
+		this->sentiLex = pnewData->sentiLex;
+	}
+	fin.open((data_dir + std::to_string(epoch) + ".dat").c_str(), ifstream::in);
+	if (!fin) {
+		printf("Error! Cannot read dataset %s!\n", (data_dir + std::to_string(epoch) + ".dat").c_str());
+		return 1;
+	}
+
+	if (pnewData->read_dataStream1(fin)) {
+		printf("Throw exception in function read_dataStream1()! \n");
+		delete pnewData;
+		return 1;
+	}
+
+	word2atr = pnewData->word2atr; // "access {2984, sentiLabel}" glob. Voc
+	id2word = pnewData->id2word; // "2984 access" glob. Voc
+
+	// init_parameters -> set up counts and incorporate prior senti-information
+	// Schwierigkeit: Setze Prior über Lambda in Beta NUR DANN (!), wenn das Wort neu ist.
+	// Denn ansonsten sollten wir das  neue Beta nach der Vorschrift beta=µ*sigma errechnen
+	init_model_parameters1(); // init counts like nlzw=0 etc. + incorporate prior senti-information into beta
+
+							  // Hier werden sämtliche count-parameter initialisiert (z.B. nlzw=0)
+	if (init_parameters()) {
+		printf("Throw exception in init_parameters!\n");
+		return 1;
+	}
+
+
+	/*
+	if (init_estimate1()) return 1; // Für die Worte werden zunächst labels zufällig gewählt. Davon ausgehend kann man dann estimate() aufrufen und Gibbs-Samplen
+	if (estimate1(epoch)) return 1; // sample counts and calculate new phi + save_model
+	delete_model_parameters();
+	fin.close();
+	*/
+
+	return 0;
+}
+
+int Inference::init_model_parameters1() {
+	// only care for words in the current epoch
+	// (not all words in the global vocabulary)
+	int vocabSize = pnewData->word2id.size();
+	int numDocs = pnewData->numDocs;
+	int corpusSize = pnewData->corpusSize;
+	int aveDocLength = pnewData->aveDocLength;
+
+	// model counts
+	new_nd.resize(numDocs);
+	for (int m = 0; m < numDocs; m++) {
+		new_nd[m] = 0;
+	}
+
+	new_ndl.resize(numDocs);
+	for (int m = 0; m < numDocs; m++) {
+		new_ndl[m].resize(numSentiLabs);
+		for (int l = 0; l < numSentiLabs; l++)
+			new_ndl[m][l] = 0;
+	}
+
+	new_ndlz.resize(numDocs);
+	for (int m = 0; m < numDocs; m++) {
+		new_ndlz[m].resize(numSentiLabs);
+		for (int l = 0; l < numSentiLabs; l++) {
+			new_ndlz[m][l].resize(numTopics);
+			for (int z = 0; z < numTopics; z++)
+				new_ndlz[m][l][z] = 0;
+		}
+	}
+
+	nlzw.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		nlzw[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			nlzw[l][z].resize(vocabSize);
+			for (int r = 0; r < vocabSize; r++)
+				nlzw[l][z][r] = 0;
+		}
+	}
+
+	nlz.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		nlz[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			nlz[l][z] = 0;
+		}
+	}
+
+	// posterior P
+	// Also vermutlich p(l | d). Gegeben ein Dokument d, was ist das Label l (pos./neg.)
+	// Beachte: Die Güte von JST kann somit also auch anhand der richtig klassifizierten ermittelt werden
+	new_p.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		new_p[l].resize(numTopics);
+	}
+
+	// model parameters
+	newpi_dl.resize(numDocs);
+	for (int m = 0; m < numDocs; m++) {
+		newpi_dl[m].resize(numSentiLabs);
+	}
+
+	newtheta_dlz.resize(numDocs);
+	for (int m = 0; m < numDocs; m++) {
+		newtheta_dlz[m].resize(numSentiLabs);
+		for (int l = 0; l < numSentiLabs; l++) {
+			newtheta_dlz[m][l].resize(numTopics);
+		}
+	}
+
+	newphi_lzw.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		newphi_lzw[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			newphi_lzw[l][z].resize(vocabSize);
+			for (int r = 0; r < numTopics; r++) {
+				newphi_lzw[l][z][r];
+			}
+		}
+	}
+
+	// init hyperparameters
+	alpha_lz.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		alpha_lz[l].resize(numTopics);
+	}
+
+	alphaSum_l.resize(numSentiLabs);
+
+	if (_alpha <= 0) {
+		_alpha = (double)aveDocLength * 0.05 / (double)(numSentiLabs * numTopics);
+	}
+
+	for (int l = 0; l < numSentiLabs; l++) {
+		alphaSum_l[l] = 0.0;
+		for (int z = 0; z < numTopics; z++) {
+			alpha_lz[l][z] = _alpha;
+			alphaSum_l[l] += alpha_lz[l][z];
+		}
+	}
+
+	//beta
+	if (_beta <= 0) _beta = 0.01;
+
+	beta_lzw.resize(numSentiLabs);
+	betaSum_lz.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		beta_lzw[l].resize(numTopics);
+		betaSum_lz[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			betaSum_lz[l][z] = 0.0;
+			beta_lzw[l][z].resize(vocabSize);
+			for (int r = 0; r < vocabSize; r++) {
+				beta_lzw[l][z][r] = _beta;
+			}
+		}
+	}
+
+	// word prior transformation matrix lambda
+	lambda_lw.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		lambda_lw[l].resize(vocabSize);
+		for (int r = 0; r < vocabSize; r++) {
+			lambda_lw[l][r] = 1;
+		}
+	}
+
+	// incorporate prior information into beta
+	//this->prior2beta1();
+	//this->set_gamma();
+	printf("Model counts alive! \n");
 	return 0;
 }
 
@@ -777,6 +949,141 @@ int Inference::init_parameters() {
 	return 0;
 }
 
+// Hier werden sämtliche count-parameters für die 
+// neuen Daten (wie z.B. new_nlzw=0) initialisiert. 
+// Auch der Prior durch Lambda (Sentilex) wird in Beta einmodelliert
+int Inference::init_parameters1() {
+
+	// model counts
+	// new_p wird zur posterior-Berechnung benutzt p(l | d) (das Label eines Dokumentes soll also estimated werden)
+	new_p.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		new_p[l].resize(numTopics); // Der Vektor wird hier lediglich "vergrößert"/erweitert
+		for (int z = 0; z < numTopics; z++) {
+			new_p[l][z] = 0.0;
+		}
+	}
+
+	new_nd.resize(pnewData->numDocs);
+	for (int m = 0; m < pnewData->numDocs; m++) {
+		new_nd[m] = 0;
+	}
+
+	new_ndl.resize(pnewData->numDocs);
+	for (int m = 0; m < pnewData->numDocs; m++) {
+		new_ndl[m].resize(numSentiLabs);
+		for (int l = 0; l < numSentiLabs; l++) {
+			new_ndl[m][l] = 0;
+		}
+	}
+
+	new_ndlz.resize(pnewData->numDocs);
+	for (int m = 0; m < pnewData->numDocs; m++) {
+		new_ndlz[m].resize(numSentiLabs);
+		for (int l = 0; l < numSentiLabs; l++) {
+			new_ndlz[m][l].resize(numTopics);
+			for (int z = 0; z < numTopics; z++) {
+				new_ndlz[m][l][z] = 0;
+			}
+		}
+	}
+
+	new_nlzw.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		new_nlzw[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			new_nlzw[l][z].resize(pnewData->id2_id.size());
+			for (int r = 0; r < pnewData->id2_id.size(); r++) {
+				new_nlzw[l][z][r] = 0;
+			}
+		}
+	}
+
+	new_nlz.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		new_nlz[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			new_nlz[l][z] = 0;
+		}
+	}
+
+	// model parameters
+	newpi_dl.resize(pnewData->numDocs);
+	for (int m = 0; m < pnewData->numDocs; m++) {
+		newpi_dl[m].resize(numSentiLabs);
+	}
+
+	newtheta_dlz.resize(pnewData->numDocs);
+	for (int m = 0; m < pnewData->numDocs; m++) {
+		newtheta_dlz[m].resize(numSentiLabs);
+		for (int l = 0; l < numSentiLabs; l++) {
+			newtheta_dlz[m][l].resize(numTopics);
+		}
+	}
+
+	newphi_lzw.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		newphi_lzw[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			newphi_lzw[l][z].resize(pnewData->id2_id.size());
+		}
+	}
+
+	// hyperparameters
+	_alpha = (double)pnewData->aveDocLength * 0.05 / (double)(numSentiLabs * numTopics);
+	alpha_lz.resize(numSentiLabs);
+	alphaSum_l.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		alphaSum_l[l] = 0.0;
+		alpha_lz[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			alpha_lz[l][z] = _alpha;
+			alphaSum_l[l] += alpha_lz[l][z];
+		}
+	}
+
+	// gamma
+	gamma_l.resize(numSentiLabs);
+	gammaSum = 0.0;
+	for (int l = 0; l < numSentiLabs; l++) {
+		gamma_l[l] = (double)pnewData->aveDocLength * 0.05 / (double)numSentiLabs;
+		gammaSum += gamma_l[l];
+	}
+
+	//beta
+	if (_beta <= 0) {
+		_beta = 0.01;
+	}
+	beta_lzw.resize(numSentiLabs);
+	betaSum_lz.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		beta_lzw[l].resize(numTopics);
+		betaSum_lz[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			beta_lzw[l][z].resize(pnewData->id2_id.size());
+			for (int r = 0; r < pnewData->id2_id.size(); r++) {
+				beta_lzw[l][z][r] = _beta;
+				betaSum_lz[l][z] += beta_lzw[l][z][r];
+			}
+		}
+	}
+
+	// incorporate prior knowledge into beta
+	if (sentiLexFile != "") {
+		// word prior transformation matrix
+		lambda_lw.resize(numSentiLabs);
+		for (int l = 0; l < numSentiLabs; l++) {
+			lambda_lw[l].resize(pnewData->id2_id.size());
+			for (int r = 0; r < pnewData->id2_id.size(); r++)
+				lambda_lw[l][r] = 1;
+		}
+		// MUST init beta_lzw first before incorporating prior information into beta
+		this->prior2beta2(); // Hier wird die prior-senti-Info aus dem Lexicon erst richtig einmodelliert und in beta_lzw bzw. betaSum_lz gesetzt
+	}
+
+	return 0;
+}
+
 
 // Hier samplen wir für die bekannten Worte/Vokabeln aus den neuen Dokumenten jeweils neue Topic&Sentiment Labels
 int Inference::inf_sampling(int m, int n, int& sentiLab, int& topic) {
@@ -1089,6 +1396,43 @@ int Inference::compute_newphi() {
 	return 0;
 }
 
+int Inference::compute_newbeta() {
+	map<int, int>::iterator it;
+
+	for (int l = 0; l < numSentiLabs; l++) {
+		for (int z = 0; z < numTopics; z++) {
+			for (int r = 0; r < pnewData->vocabSize; r++) {
+				it = _id2id.find(r); // Wir schauen an welcher Stelle das Wort in _id2id eingepflegt wurde. Dort bekommen wir über .second die Word-ID für die Trainingsdaten (um die counts nlzw abzurufen)
+				if (it != _id2id.end()) {
+					// Das neue Phi wird fast(!) gleich berechnet; allerdings beziehen wir auch hier die neuen Counts ein!!!
+					newphi_lzw[l][z][r] = (nlzw[l][z][it->second] + new_nlzw[l][z][r] + beta_lzw[l][z][r]) / (nlz[l][z] + new_nlz[l][z] + betaSum_lz[l][z]);
+				}
+				else {
+					printf("Error! Cannot find word [%d] !\n", r);
+					return 1;
+				}
+			}
+		}
+	}
+
+	//int vocabSize1 = pdataset->id2_id.size();
+	/*int vocabSize1 = 1;
+	for (int i = 0; i < sliding_window_phi.size; i++) {
+		for (int l = 0; l < numSentiLabs; l++) {
+			for (int z = 0; z < numTopics; z++) {
+				betaSum_lz[l][z] = 0.0;
+				for (int r = 0; r < vocabSize1; r++) {
+					beta_lzw[l][z][r] = sliding_window_phi[i][l][z][r] * window_weights[i];
+					betaSum_lz[l][z] += beta_lzw[l][z][r];
+				}
+			}
+		}
+	}*/
+
+
+	return 0;
+}
+
 
 int Inference::save_model(string model_name) {
 
@@ -1314,6 +1658,49 @@ int Inference::prior2beta() {
 			    beta_lzw[l][z][r] = beta_lzw[l][z][r] * lambda_lw[l][r];
 			    betaSum_lz[l][z] += beta_lzw[l][z][r];
 		    }
+		}
+	}
+
+	return 0;
+}
+
+int Inference::prior2beta2() {
+	mapword2atr::iterator wordIt;
+	mapword2prior::iterator sentiIt;
+
+	for (sentiIt = sentiLex.begin(); sentiIt != sentiLex.end(); sentiIt++) {
+		wordIt = word2atr.find(sentiIt->first);
+		if (wordIt != word2atr.end()) {
+			for (int j = 0; j < numSentiLabs; j++) {
+				lambda_lw[j][wordIt->second.id] = sentiIt->second.labDist[j];
+			}
+		}
+	}
+
+	// Note: the 'r' index of lambda[j][r] is corresponding to the vocabulary ID.
+	// Therefore the correct prior info can be incorporated to corresponding word count nlzw,
+	// as 'w' is also corresponding to the vocabulary ID.
+	map<int, int>::iterator idIt;
+	for (int l = 0; l < numSentiLabs; l++) {
+		for (int z = 0; z < numTopics; z++) {
+			betaSum_lz[l][z] = 0.0;
+			for (int r = 0; r < pnewData->id2_id.size(); r++) {
+				idIt = pnewData->_id2id.find(r); //find global Word-ID
+				if (idIt != pnewData->_id2id.end()) {
+					if (std::find(pnewData->newWords1.begin(), pnewData->newWords1.end(), idIt->second) != pnewData->newWords1.end()) { // check if word r was new
+						beta_lzw[l][z][r] = beta_lzw[l][z][r] * lambda_lw[l][r];
+					}
+				}
+				else { // word isnt new
+					// Rechenvorschrift für dJST (Update-Regel Sliding Window)
+					for (size_t i = 0; i < sliding_window_phi.size(); i++)
+					{
+						beta_lzw[l][z][r] += sliding_window_phi[i][l][z][r] * window_weights[i];
+					}
+				}
+				
+				betaSum_lz[l][z] += beta_lzw[l][z][r];
+			}
 		}
 	}
 

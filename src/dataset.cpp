@@ -400,6 +400,7 @@ int dataset::read_newData(vector<string>& docs) {
 				// Die korrespondierenden counts dazu werden später in anderen Methoden gebildet
 				// Beachte: word2atr ist nicht mit dem globalen Mapping zu verwechseln! Hier gilt es nur für das lokale Vokabular
 				int new_glob_id = word2id.size();
+				newWords1.push_back(new_glob_id);
 				sentiIt = sentiLex.find(strtok.token(k).c_str());
 				if (sentiIt != sentiLex.end()) {
 					priorSenti = sentiIt->second.id;

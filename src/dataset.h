@@ -68,6 +68,8 @@ public:
 	map<int, int> id2_id; // lok. Vok. (glob_id, loc_id) Mapping zwischen glob und loc Word-IDs (für neue docs)
 	map<int, int> _id2id; // lok. Vok. Dieses Mapping bildet dagegen loc auf glob Word-IDs ab
 	vector<string> newWords;
+	vector<int> newWords1; // added; gibt die (glob.) Word-IDs der neuen Worte an
+
 	
 	document ** pdocs; // store training data vocab ID (in pdocs sind alle alten Trainings-Dokumente als ID-Wort-Sentiment-Paare gespeichert)
 	document ** _pdocs; // only use for inference, i.e., for storing the new/test vocab ID (Hier werden also die Word-IDs nur bezüglich des neuen Docs gespeichert; unabhängig davon, ob ein Wort schon in den Trainingsdaten gesehen wurde (es bekommt also dennoch eine "neue" Word-ID))
@@ -93,7 +95,7 @@ public:
 	/// The count of unique words over all documents for the epoch
 	/// </summary>
 	int vocabSize;
-	int newVocabSize; // added; Zählt die Anzahl an unterschiedlichen Worten/Vokabeln über das neue Dokument
+	int newVocabSize; // added; Zählt die Anzahl an neuen Worten/Vokabeln über das neue Dokument
 	/// <summary>
 	/// The count of all words in the corpus (documents). 
 	/// Also duplicates will be counted.
@@ -105,7 +107,7 @@ public:
 	// functions 
 	dataset();
 	dataset(string result_dir);
-	dataset(string result_dir, string model_dir); // added 
+	dataset(string result_dir, string model_dir); // added; model_dir wird benötigt um später aus diesem Ordner wieder die wordmap zu lesen
 	dataset::dataset(string result_dir, mapword2atr word2atr); // added
 	~dataset(void);
 	

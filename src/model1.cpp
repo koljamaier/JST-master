@@ -162,7 +162,7 @@ int model::initNewModel(int epoch, string model_dir) {
 
 	word2atr = pdataset->word2atr; // "access {2984, sentiLabel}" glob. Voc
 	id2word = pdataset->id2word; // "2984 access" glob. Voc
-	init_model_parameters1(); // init counts like nlzw=0 etc.
+	init_model_parameters1(); // init counts like nlzw=0 etc. + incorporate prior senti-information into beta
 	if (init_estimate1()) return 1; // Für die Worte werden zunächst labels zufällig gewählt. Davon ausgehend kann man dann estimate() aufrufen und Gibbs-Samplen
 	if (estimate1(epoch)) return 1; // sample counts and calculate new phi + save_model
 	delete_model_parameters();
@@ -348,6 +348,8 @@ int model::init_model_parameters()
 
 int model::init_model_parameters1()
 {
+	// only care for words in the current epoch
+	// (not all words in the global vocabulary)
 	int vocabSize1 = pdataset->id2_id.size();
 	numDocs = pdataset->numDocs;
 	corpusSize = pdataset->corpusSize;
@@ -539,6 +541,7 @@ int model::prior2beta() {
 }
 
 // Hier wird einfach nur der Senti-Prior in Beta eingemodellt
+// Achtung: Nur am Anfang callen (nicht für dJST; dort wollen wir Lambda nicht mehr neu einbeziehen)
 int model::prior2beta1() {
 	mapword2id::iterator wordIt;
 	mapword2prior::iterator sentiIt;
