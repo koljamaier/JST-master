@@ -475,8 +475,8 @@ int dataset::read_newData(vector<string>& docs) {
 		_add_doc(_pdoc, i);
 	} // end for: Alle Dokumente wurden eingelesen & bearbeitet
 
-	  // update number of new words
-	vocabSize = word2id.size();
+	// update number of new words
+	vocabSize = word2id.size(); // global voc-size
 	newVocabSize = newWords.size();
 	aveDocLength = corpusSize / numDocs;
 

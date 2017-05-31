@@ -123,6 +123,8 @@ public:
 	vector<vector<vector<double> > > beta_lzw; // size: (L x T x V)
 	vector<vector<double> > betaSum_lz;
 	vector<double> gamma_l; // size: (L)
+	vector<vector<double> > gamma_dl; // added; size: (numDocs x L)
+	vector<double> gammaSum_d;// added;
 	double gammaSum; 
 	vector<vector<double> > lambda_lw; // size: (L x V) -- for encoding prior sentiment information 
 	
@@ -142,7 +144,26 @@ public:
 	int init_parameters();
 
 	int init_parameters1(); // added
-	int init_model_parameters1(); // added; 
+	int init_parameters2(); // added
+	int init_djstestimate(); // added
+	int init_djstestimate2(); // added
+	int djst_estimate(int epoch); // added
+	int djst_sampling(int m, int n, int& sentiLab, int& topic); // added
+	int update_Parameters(); // added
+	void compute_newpi1(); // added; incorporates the new gamma
+	void compute_newphi1(); // added; beachtet nur neue worte (wie bei model.cpp compute_phi_lzw1())
+	int save_model(string model_name, int epoch); // added
+	inline int delete_model_parameters() {
+		numDocs = 0;
+		vocabSize = 0;
+
+		if (pnewData != NULL) {
+			delete pnewData;
+			pnewData = NULL;
+		}
+
+		return 0;
+	}
     
 	//added
 	/// <summary>
@@ -188,7 +209,9 @@ public:
     int save_model_newtheta_dlz(string filename);
     int save_model_newphi_lzw(string filename);
     int save_model_newothers(string filename);
+	int save_model_newothers1(string filename); // added
     int save_model_newtwords(string filename);
+	int save_model_newtwords1(string filename); // added
 
 	private:
 		ifstream fin;

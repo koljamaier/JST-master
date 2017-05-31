@@ -54,7 +54,9 @@ Inference::~Inference(void) {
 
 
 int Inference::init(int argc, char ** argv) {
-	
+	numSentiLabs = 0;
+	numTopics = 0;
+
 	firstModel = new model();
 	// Die ganzen Argumente in test.properties werden eingelesen (wie Pfade für result-directory (result_dir) und data-directory (data_dir))
 	// Diese Werte werden dann in dieses (this) Modell geschrieben
@@ -84,6 +86,8 @@ int Inference::init(int argc, char ** argv) {
 		}
 	sliding_window_phi.push_back(firstModel->phi_lzw);
 	}
+
+	trainNextModel(4);
 
 	/*
 	So lange neue Daten vorliegen soll das nächste Modell
@@ -203,6 +207,89 @@ int Inference::init_inf() {
 	return 0;
 }
 
+// Gleicht quasi init_estimate wie bei model
+int Inference::init_djstestimate() {
+	// init inf
+	// Hier initialisieren (zufällig) wir die ersten Sentiment-/Topic-Labels. Somit kann dann das "richtige" Sampling starten
+	int sentiLab, topic;
+	new_z.resize(pnewData->numDocs);
+	new_l.resize(pnewData->numDocs);
+
+	for (int m = 0; m < pnewData->numDocs; m++) {
+		int docLength = pnewData->_pdocs[m]->length;
+		new_z[m].resize(docLength);
+		new_l[m].resize(docLength);
+		for (int t = 0; t < docLength; t++) {
+			if (pnewData->_pdocs[m]->words[t] < 0) { // z.B. wenn t größer als die docLength ist ;)
+				printf("ERROR! word token %d has index smaller than 0 in doc[%d][%d]\n", pnewData->_pdocs[m]->words[t], m, t);
+				return 1;
+			}
+
+			// sample sentiment label
+			if ((pnewData->pdocs[m]->priorSentiLabels[t] > -1) && (pnewData->pdocs[m]->priorSentiLabels[t] < numSentiLabs)) {
+				sentiLab = pnewData->pdocs[m]->priorSentiLabels[t]; // incorporate prior information into the model  
+			}
+			else { // Wenn keine Prior Information (über das Lexicon) vorliegt, so samplen wir zufällig ein Label
+				sentiLab = (int)(((double)rand() / RAND_MAX) * numSentiLabs);
+				if (sentiLab == numSentiLabs) sentiLab = numSentiLabs - 1;
+			}
+			new_l[m][t] = sentiLab;
+
+			// sample topic label
+			topic = (int)(((double)rand() / RAND_MAX) * numTopics);
+			if (topic == numTopics)  topic = numTopics - 1;
+			new_z[m][t] = topic;
+			new_nd[m]++;
+			new_ndl[m][sentiLab]++;
+			new_ndlz[m][sentiLab][topic]++;
+			new_nlzw[sentiLab][topic][pnewData->_pdocs[m]->words[t]]++;
+			new_nlz[sentiLab][topic]++;
+		}
+	}
+	return 0;
+}
+
+int Inference::init_djstestimate2() {
+	// init inf
+	// Hier initialisieren (zufällig) wir die ersten Sentiment-/Topic-Labels. Somit kann dann das "richtige" Sampling starten
+	int sentiLab, topic;
+	new_z.resize(pnewData->numDocs);
+	new_l.resize(pnewData->numDocs);
+
+	for (int m = 0; m < pnewData->numDocs; m++) {
+		int docLength = pnewData->pdocs[m]->length;
+		new_z[m].resize(docLength);
+		new_l[m].resize(docLength);
+		for (int t = 0; t < docLength; t++) {
+			if (pnewData->pdocs[m]->words[t] < 0) { // z.B. wenn t größer als die docLength ist ;)
+				printf("ERROR! word token %d has index smaller than 0 in doc[%d][%d]\n", pnewData->pdocs[m]->words[t], m, t);
+				return 1;
+			}
+
+			// sample sentiment label
+			if ((pnewData->pdocs[m]->priorSentiLabels[t] > -1) && (pnewData->pdocs[m]->priorSentiLabels[t] < numSentiLabs)) {
+				sentiLab = pnewData->pdocs[m]->priorSentiLabels[t]; // incorporate prior information into the model  
+			}
+			else { // Wenn keine Prior Information (über das Lexicon) vorliegt, so samplen wir zufällig ein Label
+				sentiLab = (int)(((double)rand() / RAND_MAX) * numSentiLabs);
+				if (sentiLab == numSentiLabs) sentiLab = numSentiLabs - 1;
+			}
+			new_l[m][t] = sentiLab;
+
+			// sample topic label
+			topic = (int)(((double)rand() / RAND_MAX) * numTopics);
+			if (topic == numTopics)  topic = numTopics - 1;
+			new_z[m][t] = topic;
+			new_nd[m]++;
+			new_ndl[m][sentiLab]++;
+			new_ndlz[m][sentiLab][topic]++;
+			new_nlzw[sentiLab][topic][pnewData->pdocs[m]->words[t]]++;
+			new_nlz[sentiLab][topic]++;
+		}
+	}
+	return 0;
+}
+
 int Inference::trainNextModel(int epoch) {
 
 	pnewData = new dataset(result_dir, model_dir);
@@ -229,164 +316,164 @@ int Inference::trainNextModel(int epoch) {
 
 	word2atr = pnewData->word2atr; // "access {2984, sentiLabel}" glob. Voc
 	id2word = pnewData->id2word; // "2984 access" glob. Voc
+	numDocs = pnewData->numDocs;
 
 	// init_parameters -> set up counts and incorporate prior senti-information
 	// Schwierigkeit: Setze Prior über Lambda in Beta NUR DANN (!), wenn das Wort neu ist.
 	// Denn ansonsten sollten wir das  neue Beta nach der Vorschrift beta=µ*sigma errechnen
-	init_model_parameters1(); // init counts like nlzw=0 etc. + incorporate prior senti-information into beta
 
-							  // Hier werden sämtliche count-parameter initialisiert (z.B. nlzw=0)
-	if (init_parameters()) {
+	// Hier werden sämtliche new_count-parameter initialisiert (z.B. new_nlzw=0)
+	if (init_parameters2()) {
 		printf("Throw exception in init_parameters!\n");
 		return 1;
 	}
 
+	if (init_djstestimate2()) {
+		printf("Throw exception in init_djstestimate()!\n");
+		return 1;
+	};
 
-	/*
-	if (init_estimate1()) return 1; // Für die Worte werden zunächst labels zufällig gewählt. Davon ausgehend kann man dann estimate() aufrufen und Gibbs-Samplen
-	if (estimate1(epoch)) return 1; // sample counts and calculate new phi + save_model
-	delete_model_parameters();
+	if (djst_estimate(epoch)) {
+		printf("Throw exception in djst_estimate(epoch)!\n");
+		return 1;
+	};
 	fin.close();
-	*/
+	
+	delete_model_parameters();
 
 	return 0;
 }
 
-int Inference::init_model_parameters1() {
-	// only care for words in the current epoch
-	// (not all words in the global vocabulary)
-	int vocabSize = pnewData->word2id.size();
-	int numDocs = pnewData->numDocs;
-	int corpusSize = pnewData->corpusSize;
-	int aveDocLength = pnewData->aveDocLength;
 
-	// model counts
-	new_nd.resize(numDocs);
-	for (int m = 0; m < numDocs; m++) {
-		new_nd[m] = 0;
-	}
+// Hier geschieht viel bzgl. der Berechnung (bzw. hier werden alle wichtigen Funktionen dafür gecallt)
+// Das Modell wird auf die Daten trainiert (Parameter Phi,... werden estimated)
+int Inference::djst_estimate(int epoch) {
+	int sentiLab, topic;
+	printf("Sampling %d iterations!\n", niters);
 
-	new_ndl.resize(numDocs);
-	for (int m = 0; m < numDocs; m++) {
-		new_ndl[m].resize(numSentiLabs);
-		for (int l = 0; l < numSentiLabs; l++)
-			new_ndl[m][l] = 0;
-	}
+	for (liter = 1; liter <= niters; liter++) {
+		for (int m = 0; m < numDocs; m++) {
+			for (int n = 0; n < pnewData->pdocs[m]->length; n++) {
+				// Hier werden auch die counts geupdatet (wie z.B. nlzw)
+				// Auf diesen neuen counts können dann die Parameter estimated werden (z.B. compute_phi_lzw())
+				djst_sampling(m, n, sentiLab, topic);
+				new_l[m][n] = sentiLab;
+				new_z[m][n] = topic;
+			}
+		}
 
-	new_ndlz.resize(numDocs);
-	for (int m = 0; m < numDocs; m++) {
-		new_ndlz[m].resize(numSentiLabs);
-		for (int l = 0; l < numSentiLabs; l++) {
-			new_ndlz[m][l].resize(numTopics);
-			for (int z = 0; z < numTopics; z++)
-				new_ndlz[m][l][z] = 0;
+		if (updateParaStep > 0 && liter % updateParaStep == 0) {
+			this->update_Parameters();
+		}
+
+		if (savestep > 0 && liter % savestep == 0) {
+			if (liter == niters) break;
+			printf("Iteration %d ...\n", liter); // added
+
+			compute_newpi1();
+			compute_newtheta();
+			compute_newphi1();
+			//save_model1(putils->generate_model_name(liter));
 		}
 	}
 
-	nlzw.resize(numSentiLabs);
-	for (int l = 0; l < numSentiLabs; l++) {
-		nlzw[l].resize(numTopics);
-		for (int z = 0; z < numTopics; z++) {
-			nlzw[l][z].resize(vocabSize);
-			for (int r = 0; r < vocabSize; r++)
-				nlzw[l][z][r] = 0;
-		}
-	}
-
-	nlz.resize(numSentiLabs);
-	for (int l = 0; l < numSentiLabs; l++) {
-		nlz[l].resize(numTopics);
-		for (int z = 0; z < numTopics; z++) {
-			nlz[l][z] = 0;
-		}
-	}
-
-	// posterior P
-	// Also vermutlich p(l | d). Gegeben ein Dokument d, was ist das Label l (pos./neg.)
-	// Beachte: Die Güte von JST kann somit also auch anhand der richtig klassifizierten ermittelt werden
-	new_p.resize(numSentiLabs);
-	for (int l = 0; l < numSentiLabs; l++) {
-		new_p[l].resize(numTopics);
-	}
-
-	// model parameters
-	newpi_dl.resize(numDocs);
-	for (int m = 0; m < numDocs; m++) {
-		newpi_dl[m].resize(numSentiLabs);
-	}
-
-	newtheta_dlz.resize(numDocs);
-	for (int m = 0; m < numDocs; m++) {
-		newtheta_dlz[m].resize(numSentiLabs);
-		for (int l = 0; l < numSentiLabs; l++) {
-			newtheta_dlz[m][l].resize(numTopics);
-		}
-	}
-
+	printf("Gibbs sampling completed!\n");
+	printf("Saving the final model!\n");
+	compute_newpi1();
+	compute_newtheta();
+	compute_newphi1();
+	// mapping back. this is the important difference to estimate(int epoch) func
+	/*vector<vector<vector<double> > > phi_lzw1(newphi_lzw); // copy
+	vocabSize = pnewData->vocabSize; // overall vocabsize
 	newphi_lzw.resize(numSentiLabs);
 	for (int l = 0; l < numSentiLabs; l++) {
 		newphi_lzw[l].resize(numTopics);
 		for (int z = 0; z < numTopics; z++) {
 			newphi_lzw[l][z].resize(vocabSize);
-			for (int r = 0; r < numTopics; r++) {
-				newphi_lzw[l][z][r];
-			}
-		}
-	}
-
-	// init hyperparameters
-	alpha_lz.resize(numSentiLabs);
-	for (int l = 0; l < numSentiLabs; l++) {
-		alpha_lz[l].resize(numTopics);
-	}
-
-	alphaSum_l.resize(numSentiLabs);
-
-	if (_alpha <= 0) {
-		_alpha = (double)aveDocLength * 0.05 / (double)(numSentiLabs * numTopics);
-	}
-
-	for (int l = 0; l < numSentiLabs; l++) {
-		alphaSum_l[l] = 0.0;
-		for (int z = 0; z < numTopics; z++) {
-			alpha_lz[l][z] = _alpha;
-			alphaSum_l[l] += alpha_lz[l][z];
-		}
-	}
-
-	//beta
-	if (_beta <= 0) _beta = 0.01;
-
-	beta_lzw.resize(numSentiLabs);
-	betaSum_lz.resize(numSentiLabs);
-	for (int l = 0; l < numSentiLabs; l++) {
-		beta_lzw[l].resize(numTopics);
-		betaSum_lz[l].resize(numTopics);
-		for (int z = 0; z < numTopics; z++) {
-			betaSum_lz[l][z] = 0.0;
-			beta_lzw[l][z].resize(vocabSize);
 			for (int r = 0; r < vocabSize; r++) {
-				beta_lzw[l][z][r] = _beta;
+				newphi_lzw[l][z][r] = 0;
 			}
 		}
 	}
 
-	// word prior transformation matrix lambda
-	lambda_lw.resize(numSentiLabs);
+	map<int, int>::iterator idIt;
 	for (int l = 0; l < numSentiLabs; l++) {
-		lambda_lw[l].resize(vocabSize);
-		for (int r = 0; r < vocabSize; r++) {
-			lambda_lw[l][r] = 1;
+		for (int z = 0; z < numTopics; z++) {
+			for (int r = 0; r < pnewData->id2_id.size(); r++) {
+				idIt = pnewData->_id2id.find(r); //find global Word-ID
+				if (idIt != pnewData->_id2id.end()) {
+					newphi_lzw[l][z][idIt->second] = phi_lzw1[l][z][r];
+				}
+			}
 		}
-	}
+	}*/
 
-	// incorporate prior information into beta
-	//this->prior2beta1();
-	//this->set_gamma();
-	printf("Model counts alive! \n");
+	save_model(putils->generate_model_name(-1), epoch);
 	return 0;
 }
 
+
+// Hier samplen wir für die bekannten Worte/Vokabeln aus den neuen Dokumenten jeweils neue Topic&Sentiment Labels
+// Dabei betrachten wir nur Wörter des aktuellen Zeitschlitzes! 
+// (Später wird auch das globale Vokabular betrachtet; fürs Sampling selbst werden aber nur die lokalen betrachtet)
+// Achtung: Wir gehen hier mit dem lokalen Vokabular rein. Deshalb failt es!
+int Inference::djst_sampling(int m, int n, int& sentiLab, int& topic) {
+	sentiLab = new_l[m][n];
+	topic = new_z[m][n];
+
+	int w = pnewData->pdocs[m]->words[n];
+	double u;
+
+	new_nd[m]--;
+	new_ndl[m][sentiLab]--;
+	new_ndlz[m][sentiLab][topic]--;
+	new_nlzw[sentiLab][topic][w]--; // Der count welcher hier durch die vorausgegangene sampling-iteration ermittelt wurde. nlzw[l][k][w] bezieht sich dagegen auf den bereits gelernten Count des trainierten Modells
+	new_nlz[sentiLab][topic]--;
+
+	// do multinomial sampling via cumulative method
+	for (int l = 0; l < numSentiLabs; l++) {
+		for (int k = 0; k < numTopics; k++) {
+			new_p[l][k] = (new_nlzw[l][k][w] + beta_lzw[l][k][w]) / (new_nlz[l][k] + betaSum_lz[l][k]) *
+				(new_ndlz[m][l][k] + alpha_lz[l][k]) / (new_ndl[m][l] + alphaSum_l[l]) *
+				(new_ndl[m][l] + gamma_dl[m][l]) / (new_nd[m] + gammaSum_d[m]);
+		}
+	}
+
+	// accumulate multinomial parameters
+	// hier werden letztlich "sentiLab" und "topic" gesampled
+	for (int l = 0; l < numSentiLabs; l++) {
+		for (int k = 0; k < numTopics; k++) {
+			if (k == 0) {
+				if (l == 0) continue;
+				else new_p[l][k] += new_p[l - 1][numTopics - 1];
+			}
+			else new_p[l][k] += new_p[l][k - 1];
+		}
+	}
+	// probability normalization
+	u = ((double)rand() / RAND_MAX) * new_p[numSentiLabs - 1][numTopics - 1];
+
+	for (sentiLab = 0; sentiLab < numSentiLabs; sentiLab++) {
+		for (topic = 0; topic < numTopics; topic++) {
+			if (new_p[sentiLab][topic] > u) {
+				goto stop;
+			}
+		}
+	}
+
+stop:
+	if (sentiLab == numSentiLabs) sentiLab = numSentiLabs - 1; // the max value of label is (S - 1)
+	if (topic == numTopics) topic = numTopics - 1;
+
+	// add estimated 'z' and 'l' to counts
+	new_nd[m]++;
+	new_ndl[m][sentiLab]++;
+	new_ndlz[m][sentiLab][topic]++;
+	new_nlzw[sentiLab][topic][w]++;
+	new_nlz[sentiLab][topic]++;
+
+	return 0;
+}
 
 int Inference::initFirstModel() {
 	pnewData = new dataset(result_dir);
@@ -915,6 +1002,7 @@ int Inference::init_parameters() {
 		gammaSum += gamma_l[l];
 	}
 
+
 	//beta
 	if (_beta <= 0) {
 		_beta = 0.01;
@@ -1050,6 +1138,22 @@ int Inference::init_parameters1() {
 		gammaSum += gamma_l[l];
 	}
 
+	if (_gamma <= 0) {
+		_gamma = (double)pnewData->aveDocLength * 0.05 / (double)numSentiLabs;
+	}
+
+	// added: Wie bei model.cpp
+	gamma_dl.resize(numDocs);
+	gammaSum_d.resize(numDocs);
+	for (int d = 0; d < numDocs; d++) {
+		gamma_dl[d].resize(numSentiLabs);
+		gammaSum_d[d] = 0.0;
+		for (int l = 0; l < numSentiLabs; l++) {
+			gamma_dl[d][l] = _gamma;
+			gammaSum_d[d] += gamma_dl[d][l];
+		}
+	}
+
 	//beta
 	if (_beta <= 0) {
 		_beta = 0.01;
@@ -1084,6 +1188,163 @@ int Inference::init_parameters1() {
 	return 0;
 }
 
+int Inference::init_parameters2() {
+
+	// model counts
+	// new_p wird zur posterior-Berechnung benutzt p(l | d) (das Label eines Dokumentes soll also estimated werden)
+	new_p.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		new_p[l].resize(numTopics); // Der Vektor wird hier lediglich "vergrößert"/erweitert
+		for (int z = 0; z < numTopics; z++) {
+			new_p[l][z] = 0.0;
+		}
+	}
+
+	new_nd.resize(pnewData->numDocs);
+	for (int m = 0; m < pnewData->numDocs; m++) {
+		new_nd[m] = 0;
+	}
+
+	new_ndl.resize(pnewData->numDocs);
+	for (int m = 0; m < pnewData->numDocs; m++) {
+		new_ndl[m].resize(numSentiLabs);
+		for (int l = 0; l < numSentiLabs; l++) {
+			new_ndl[m][l] = 0;
+		}
+	}
+
+	new_ndlz.resize(pnewData->numDocs);
+	for (int m = 0; m < pnewData->numDocs; m++) {
+		new_ndlz[m].resize(numSentiLabs);
+		for (int l = 0; l < numSentiLabs; l++) {
+			new_ndlz[m][l].resize(numTopics);
+			for (int z = 0; z < numTopics; z++) {
+				new_ndlz[m][l][z] = 0;
+			}
+		}
+	}
+
+	new_nlzw.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		new_nlzw[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			new_nlzw[l][z].resize(pnewData->vocabSize);
+			for (int r = 0; r < pnewData->vocabSize; r++) {
+				new_nlzw[l][z][r] = 0;
+			}
+		}
+	}
+
+	new_nlz.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		new_nlz[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			new_nlz[l][z] = 0;
+		}
+	}
+
+	// model parameters
+	newpi_dl.resize(pnewData->numDocs);
+	for (int m = 0; m < pnewData->numDocs; m++) {
+		newpi_dl[m].resize(numSentiLabs);
+	}
+
+	newtheta_dlz.resize(pnewData->numDocs);
+	for (int m = 0; m < pnewData->numDocs; m++) {
+		newtheta_dlz[m].resize(numSentiLabs);
+		for (int l = 0; l < numSentiLabs; l++) {
+			newtheta_dlz[m][l].resize(numTopics);
+		}
+	}
+
+	newphi_lzw.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		newphi_lzw[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			newphi_lzw[l][z].resize(pnewData->vocabSize);
+		}
+	}
+
+	// hyperparameters
+	_alpha = (double)pnewData->aveDocLength * 0.05 / (double)(numSentiLabs * numTopics);
+	alpha_lz.resize(numSentiLabs);
+	alphaSum_l.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		alphaSum_l[l] = 0.0;
+		alpha_lz[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			alpha_lz[l][z] = _alpha;
+			alphaSum_l[l] += alpha_lz[l][z];
+		}
+	}
+
+	// gamma
+	gamma_l.resize(numSentiLabs);
+	gammaSum = 0.0;
+	for (int l = 0; l < numSentiLabs; l++) {
+		gamma_l[l] = (double)pnewData->aveDocLength * 0.05 / (double)numSentiLabs;
+		gammaSum += gamma_l[l];
+	}
+
+	if (_gamma <= 0) {
+		_gamma = (double)pnewData->aveDocLength * 0.05 / (double)numSentiLabs;
+	}
+
+	// added: Wie bei model.cpp
+	gamma_dl.resize(numDocs);
+	gammaSum_d.resize(numDocs);
+	for (int d = 0; d < numDocs; d++) {
+		gamma_dl[d].resize(numSentiLabs);
+		gammaSum_d[d] = 0.0;
+		for (int l = 0; l < numSentiLabs; l++) {
+			gamma_dl[d][l] = _gamma;
+			gammaSum_d[d] += gamma_dl[d][l];
+		}
+	}
+
+	//beta
+	if (_beta <= 0) {
+		_beta = 0.01;
+	}
+	beta_lzw.resize(numSentiLabs);
+	betaSum_lz.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		beta_lzw[l].resize(numTopics);
+		betaSum_lz[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			beta_lzw[l][z].resize(pnewData->vocabSize);
+			for (int r = 0; r < pnewData->vocabSize; r++) {
+				beta_lzw[l][z][r] = _beta;
+				betaSum_lz[l][z] += beta_lzw[l][z][r];
+			}
+		}
+	}
+
+	// added
+	// Resize old phi-distributions (less words) to avoid overflow
+	for (size_t i = 0; i < time_slices; i++) {
+		for (int l = 0; l < numSentiLabs; l++) {
+			for (int z = 0; z < numTopics; z++) {
+				sliding_window_phi[i][l][z].resize(pnewData->vocabSize);
+			}
+		}
+	}
+
+	// incorporate prior knowledge into beta
+	if (sentiLexFile != "") {
+		// word prior transformation matrix
+		lambda_lw.resize(numSentiLabs);
+		for (int l = 0; l < numSentiLabs; l++) {
+			lambda_lw[l].resize(pnewData->vocabSize);
+			for (int r = 0; r < pnewData->vocabSize; r++)
+				lambda_lw[l][r] = 1;
+		}
+		// MUST init beta_lzw first before incorporating prior information into beta
+		this->prior2beta2(); // Hier wird die prior-senti-Info aus dem Lexicon erst richtig einmodelliert und in beta_lzw bzw. betaSum_lz gesetzt
+	}
+
+	return 0;
+}
 
 // Hier samplen wir für die bekannten Worte/Vokabeln aus den neuen Dokumenten jeweils neue Topic&Sentiment Labels
 int Inference::inf_sampling(int m, int n, int& sentiLab, int& topic) {
@@ -1353,11 +1614,19 @@ int Inference::read_newData(string filename) {
 
 
 void Inference::compute_newpi() {
-
 	for (int m = 0; m < pnewData->numDocs; m++) {
 	    for (int l = 0; l < numSentiLabs; l++) {
 		    newpi_dl[m][l] = (new_ndl[m][l] + gamma_l[l]) / (new_nd[m] + gammaSum);
 	    }
+	}
+}
+
+// Hier nehmen wir das "neue" gamma auf
+void Inference::compute_newpi1() {
+	for (int m = 0; m < pnewData->numDocs; m++) {
+		for (int l = 0; l < numSentiLabs; l++) {
+			newpi_dl[m][l] = (new_ndl[m][l] + gamma_dl[m][l]) / (new_nd[m] + gammaSum_d[m]);
+		}
 	}
 }
 
@@ -1396,6 +1665,19 @@ int Inference::compute_newphi() {
 	return 0;
 }
 
+void Inference::compute_newphi1() {
+	//vocabSize = pnewData->id2_id.size();
+	vocabSize = pnewData->word2id.size();
+	for (int l = 0; l < numSentiLabs; l++) {
+		for (int z = 0; z < numTopics; z++) {
+			for (int r = 0; r < vocabSize; r++) {
+				newphi_lzw[l][z][r] = (new_nlzw[l][z][r] + beta_lzw[l][z][r]) / (new_nlz[l][z] + betaSum_lz[l][z]);
+			}
+		}
+	}
+}
+
+
 int Inference::compute_newbeta() {
 	map<int, int>::iterator it;
 
@@ -1432,31 +1714,6 @@ int Inference::compute_newbeta() {
 
 	return 0;
 }
-
-
-int Inference::save_model(string model_name) {
-
-	if (save_model_newtassign(result_dir + model_name + tassign_suffix))
-		return 1;
-	
-	if (save_model_newtwords(result_dir + model_name + twords_suffix)) 
-		return 1;
-
-	if (save_model_newpi_dl(result_dir + model_name + pi_suffix)) 
-		return 1;
-
-	if (save_model_newtheta_dlz(result_dir + model_name + theta_suffix))
-		return 1;
-
-	if (save_model_newphi_lzw(result_dir + model_name + phi_suffix)) 
-		return 1;
-
-	if (save_model_newothers(result_dir + model_name + others_suffix)) 
-		return 1;
-
-	return 0;
-}
-
 
 
 int Inference::save_model_newpi_dl(string filename) {
@@ -1561,6 +1818,35 @@ int Inference::save_model_newothers(string filename) {
 	return 0;
 }
 
+int Inference::save_model_newothers1(string filename) {
+
+	FILE * fout = fopen(filename.c_str(), "w");
+	if (!fout) {
+		printf("Cannot save file %s!\n", filename.c_str());
+		return 1;
+	}
+
+	fprintf(fout, "model_dir=%s\n", model_dir.c_str());
+	fprintf(fout, "model_name=%s\n", model_name.c_str());
+	fprintf(fout, "data_dir=%s\n", data_dir.c_str());
+	fprintf(fout, "datasetFile=%s\n", datasetFile.c_str());
+	fprintf(fout, "result_dir=%s\n", result_dir.c_str());
+	fprintf(fout, "niters-inf=%d\n", niters);
+	fprintf(fout, "savestep-inf=%d\n", savestep);
+
+	fprintf(fout, "\n------------------ Testset ** %s ** statistics ----------------------\n", datasetFile.c_str());
+	fprintf(fout, "newNumDocs=%d\n", pnewData->numDocs);
+	fprintf(fout, "newCorpusSize=%d\n", pnewData->corpusSize);
+	fprintf(fout, "newVocabSize=%d\n", pnewData->vocabSize);
+	fprintf(fout, "numNewWords=%d\n", (int)(pnewData->newWords.size()));
+	fprintf(fout, "aveDocLength=%d\n", pnewData->aveDocLength);
+	fprintf(fout, "numSentiLabs=%d\n", numSentiLabs);
+	fprintf(fout, "numTopics=%d\n", numTopics);
+
+	fclose(fout);
+	return 0;
+}
+
 
 // Beachte: In dieser Methode werden nur die Worte aus den neuen Daten rausgeschrieben, welche bereits aus den Trainingsdaten bekannt waren.
 // Für alle anderen Worte (andere Worte aus den Trainingsdaten & neue, unbekannte Worte aus den Testdaten) wird nichts eingetragen
@@ -1607,6 +1893,47 @@ int Inference::save_model_newtwords(string filename) {
     } // for label
      
     fclose(fout);      
+	return 0;
+}
+
+int Inference::save_model_newtwords1(string filename) {
+
+	mapid2word::iterator it; // typedef map<int, string> mapid2word
+	map<int, int>::iterator _it;
+
+	FILE * fout = fopen(filename.c_str(), "w");
+	if (!fout) {
+		printf("Cannot save file %s!\n", filename.c_str());
+		return 1;
+	}
+
+	if (twords > pnewData->vocabSize) {
+		twords = pnewData->vocabSize;
+	}
+
+	for (int l = 0; l < numSentiLabs; l++) {
+		fprintf(fout, "Label %dth\n", l);
+		for (int k = 0; k < numTopics; k++) {
+			vector<pair<int, double> > words_probs;
+			pair<int, double> word_prob;
+			for (int w = 0; w < pnewData->vocabSize; w++) {
+				word_prob.first = w;
+				word_prob.second = newphi_lzw[l][k][w];
+				words_probs.push_back(word_prob);
+			}
+
+			std::sort(words_probs.begin(), words_probs.end(), sort_pred());
+
+			fprintf(fout, "Label%d_Topic%d\n", l, k);
+			for (int i = 0; i < twords; i++) {
+				it = id2word.find(words_probs[i].first);
+				if (it != id2word.end())
+					fprintf(fout, "%s   %15f\n", (it->second).c_str(), words_probs[i].second);
+			}
+		} // for topic
+	} // for label
+
+	fclose(fout);
 	return 0;
 }
 
@@ -1664,6 +1991,7 @@ int Inference::prior2beta() {
 	return 0;
 }
 
+// Berechnet globalen Beta-Vektor anhand der dJST Vorschrift (alte Verteilungen werden mit einbezogen)
 int Inference::prior2beta2() {
 	mapword2atr::iterator wordIt;
 	mapword2prior::iterator sentiIt;
@@ -1684,25 +2012,111 @@ int Inference::prior2beta2() {
 	for (int l = 0; l < numSentiLabs; l++) {
 		for (int z = 0; z < numTopics; z++) {
 			betaSum_lz[l][z] = 0.0;
-			for (int r = 0; r < pnewData->id2_id.size(); r++) {
-				idIt = pnewData->_id2id.find(r); //find global Word-ID
-				if (idIt != pnewData->_id2id.end()) {
-					if (std::find(pnewData->newWords1.begin(), pnewData->newWords1.end(), idIt->second) != pnewData->newWords1.end()) { // check if word r was new
-						beta_lzw[l][z][r] = beta_lzw[l][z][r] * lambda_lw[l][r];
-					}
+			for (int r = 0; r < pnewData->vocabSize; r++) {
+				//idIt = pnewData->_id2id.find(r); //find global Word-ID
+				//if (idIt != pnewData->_id2id.end()) {
+				if (std::find(pnewData->newWords1.begin(), pnewData->newWords1.end(), r) != pnewData->newWords1.end()) { // check if word r was new
+					beta_lzw[l][z][r] = beta_lzw[l][z][r] * lambda_lw[l][r];
 				}
-				else { // word isnt new
+				else { // word isn't new
 					// Rechenvorschrift für dJST (Update-Regel Sliding Window)
 					for (size_t i = 0; i < sliding_window_phi.size(); i++)
 					{
 						beta_lzw[l][z][r] += sliding_window_phi[i][l][z][r] * window_weights[i];
 					}
 				}
-				
 				betaSum_lz[l][z] += beta_lzw[l][z][r];
 			}
 		}
 	}
+
+	return 0;
+}
+
+int Inference::update_Parameters() {
+
+	int ** data; // temp valuable for exporting 3-dimentional array to 2-dimentional
+	double * alpha_temp;
+	data = new int*[numTopics];
+	for (int k = 0; k < numTopics; k++) {
+		data[k] = new int[numDocs];
+		for (int m = 0; m < numDocs; m++) {
+			data[k][m] = 0;
+		}
+	}
+
+	alpha_temp = new double[numTopics];
+	for (int k = 0; k < numTopics; k++) {
+		alpha_temp[k] = 0.0;
+	}
+
+	// update alpha
+	for (int j = 0; j < numSentiLabs; j++) {
+		for (int k = 0; k < numTopics; k++) {
+			for (int m = 0; m < numDocs; m++) {
+				data[k][m] = new_ndlz[m][j][k]; // ntldsum[j][k][m];
+			}
+		}
+
+		for (int k = 0; k < numTopics; k++) {
+			alpha_temp[k] = alpha_lz[j][k]; //alpha[j][k];
+		}
+
+		polya_fit_simple(data, alpha_temp, numTopics, numDocs);
+
+		// update alpha
+		alphaSum_l[j] = 0.0;
+		for (int k = 0; k < numTopics; k++) {
+			alpha_lz[j][k] = alpha_temp[k];
+			alphaSum_l[j] += alpha_lz[j][k];
+		}
+	}
+
+	return 0;
+}
+
+int Inference::save_model(string model_name, int epoch) {
+
+	if (save_model_newtassign(result_dir + std::to_string(epoch) + model_name + tassign_suffix))
+		return 1;
+
+	if (save_model_newtwords1(result_dir + std::to_string(epoch) + model_name + twords_suffix))
+		return 1;
+
+	if (save_model_newpi_dl(result_dir + std::to_string(epoch) + model_name + pi_suffix))
+		return 1;
+
+	if (save_model_newtheta_dlz(result_dir + std::to_string(epoch) + model_name + theta_suffix))
+		return 1;
+
+	if (save_model_newphi_lzw(result_dir + std::to_string(epoch) + model_name + phi_suffix))
+		return 1;
+
+	if (save_model_newothers1(result_dir + std::to_string(epoch) + model_name + others_suffix))
+		return 1;
+
+	return 0;
+}
+
+int Inference::save_model(string model_name) {
+
+	if (save_model_newtassign(result_dir + model_name + tassign_suffix))
+		return 1;
+
+	if (save_model_newtwords(result_dir + model_name + twords_suffix))
+		return 1;
+
+	if (save_model_newpi_dl(result_dir + model_name + pi_suffix))
+		return 1;
+
+	if (save_model_newtheta_dlz(result_dir + model_name + theta_suffix))
+		return 1;
+
+	if (save_model_newphi_lzw(result_dir + model_name + phi_suffix))
+		return 1;
+
+	if (save_model_newothers(result_dir + model_name + others_suffix))
+		return 1;
 
 	return 0;
 }

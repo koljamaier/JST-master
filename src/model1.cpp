@@ -575,14 +575,10 @@ int model::prior2beta1() {
 
 // In den nächsten drei Funktionen werden die Parameter (Phi, Pi, Theta) berechnet wie im Paper beschrieben (multinomial-estimation)
 void model::compute_phi_lzw() {
-
 	for (int l = 0; l < numSentiLabs; l++)  {
 	    for (int z = 0; z < numTopics; z++) {
 			for(int r = 0; r < vocabSize; r++) {
-				//if (nlzw[l][z][r]>0) {
 					phi_lzw[l][z][r] = (nlzw[l][z][r] + beta_lzw[l][z][r]) / (nlz[l][z] + betaSum_lz[l][z]);
-				//}
-				
 			}
 		}
 	}
@@ -594,7 +590,6 @@ void model::compute_phi_lzw1() {
 		for (int z = 0; z < numTopics; z++) {
 			for (int r = 0; r < vocabSize; r++) {
 				phi_lzw[l][z][r] = (nlzw[l][z][r] + beta_lzw[l][z][r]) / (nlz[l][z] + betaSum_lz[l][z]);
-
 			}
 		}
 	}
@@ -986,7 +981,9 @@ int model::init_estimate() {
     }
 
     return 0;
-}// Topic und Senti Labels werden für die Worte (zufällig) initialisiert
+}
+
+// Topic und Senti Labels werden für die Worte (zufällig) initialisiert
 // Daraus werden dann die initialen counts erstellt
 int model::init_estimate1() {
 	numDocs = pdataset->numDocs;
@@ -1132,7 +1129,7 @@ int model::estimate(int epoch) {
 // Hier geschieht viel bzgl. der Berechnung (bzw. hier werden alle wichtigen Funktionen dafür gecallt)
 // Das Modell wird auf die Daten trainiert (Parameter Phi,... werden estimated)
 int model::estimate1(int epoch) {
-	// numDocs = pdataset->numDocs;
+	numDocs = pdataset->numDocs;
 	int sentiLab, topic;
 
 	printf("Sampling %d iterations!\n", niters); // niters wird über die config reingegeben und schreibt vor wieviele Iterationen durchgeführt werden sollen
@@ -1270,6 +1267,7 @@ int model::sampling(int m, int n, int& sentiLab, int& topic) {
 
 // Neue Werte für Topic und Sentilabel werden für das Wort n in Document m gesamplet
 // Unterschied zu sampling(...): Wir fokusieren uns auf _pdocs also die lokale Codierung
+// Es wird also nur auf den aktuellen Daten gesamplet
 int model::sampling1(int m, int n, int& sentiLab, int& topic) {
 	// Sentiment und Topic aus der letzten Iteration
 	sentiLab = l[m][n];

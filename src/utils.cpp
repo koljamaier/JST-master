@@ -253,7 +253,9 @@ int utils::parse_args_inf(int argc, char ** argv, Inference * pmodel_inf) {
 	if (alpha > 0.0) pmodel_inf->_alpha = alpha; 
 	if (beta > 0.0) pmodel_inf->_beta = beta;
 	if (gamma > 0.0) pmodel_inf->_gamma = gamma;
-	if (time_slices > 0.0) pmodel_inf->time_slices = time_slices; // added
+	if (time_slices > 0) pmodel_inf->time_slices = time_slices; // added
+	if (numSentiLabs > 0) pmodel_inf->numSentiLabs = numSentiLabs; // added
+	if (numTopics > 0) pmodel_inf->numTopics = numTopics; // added
 
     return 0;
 }
