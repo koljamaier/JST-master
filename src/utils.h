@@ -44,6 +44,7 @@ struct sort_pred {
 
 class model;
 class Inference;
+class djst;
 
 /// <summary>
 /// This class is used to 1) parse the command line arguments
@@ -86,6 +87,7 @@ public:
 	/// <returns></returns>
 	int parse_args_est(int argc, char ** argv, model * pmodel);
 	int parse_args_inf(int argc, char ** argv, Inference * pmodel_inf);
+	int parse_args_djst(int argc, char ** argv, djst * pmodel_djst);
     
     // read configuration file (e.g. test.properties)
 	int read_config_file(string configfile);

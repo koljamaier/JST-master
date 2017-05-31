@@ -15,7 +15,7 @@ This is equivalent to execute JST.
 
 ### Inference/Continnous Estimation (dJST)
 To continuously train on new data execute:
-`jst -inf -config YOUR-PATH/test.properties`
+`jst -djst -config YOUR-PATH/test.properties`
 
 ## Output
 The trained parameters/distributions will be written out in the following files:

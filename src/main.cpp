@@ -29,6 +29,7 @@ USA
 
 #include "model.h"
 #include "inference.h"
+#include "djst.h"
 #include "utils.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -81,9 +82,9 @@ int main(int argc, char ** argv) {
 
 	// Hier estimaten wir "kontinuierlich" (dJST)
 	else if (model_status == MODEL_STATUS_ESTC) {
-		model jst;
+		djst djst;
 
-		if (jst.init(argc, argv)) {
+		if (djst.init(argc, argv)) {
 			show_help();
 			return 1;
 		}

@@ -80,6 +80,7 @@ for estimation), execute:
 
     jst -inf -config YOUR-PATH/test.properties
     JST1.exe -inf -config C:\Users\kmr\Downloads\JST-master\JST-master\test.properties
+    JST1.exe -djst -config C:\Users\kmr\Downloads\JST-master\JST-master\test.properties
 
 Beachte: JST ist im Grunde ein Klassifikator auf Dokumenten! Dies entscheiden wir über p(l | d). Somit können wir die Güte des Modells auch über die Accuracy neu klassifizierter Dokumente ermitteln (wie in "Weakly-supervised Joint Sentiment-Topic Detection from Text" wo nicht auf die Perplexity eingegangen wird)
     

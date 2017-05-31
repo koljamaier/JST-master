@@ -1,0 +1,20 @@
+data_dir=C:\Users\kmr\Downloads\JST-master\JST-master\data/
+datasetFile=12345.dat
+result_dir=C:\Users\kmr\Downloads\JST-master\JST-master\result\train\t2/
+sentiLexFile=C:\Users\kmr\Downloads\JST-master\JST-master\data\mpqa.constraint
+
+-------------------- Corpus statistics -----------------------
+numDocs=16
+corpusSize=495
+aveDocLength=30
+vocabSize=308
+
+---------------------- Model settings -----------------------
+numSentiLabs=3
+numTopics=1
+liter=60
+savestep=20
+updateParaStep=50
+_alpha=0.500000
+_beta=0.010000
+_gamma=0.500000

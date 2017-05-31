@@ -87,29 +87,17 @@ int Inference::init(int argc, char ** argv) {
 	sliding_window_phi.push_back(firstModel->phi_lzw);
 	}
 
-	trainNextModel(4);
-
 	/*
-	So lange neue Daten vorliegen soll das nächste Modell
-	(unter Verwendung der alten Modell (Gewichte)) trainiert werden
-
-	while (new_data) {
-	trainNextModel(last_relevant_models[])
-	}
+	Train djst model (taking old models into account) as long as new data is available
 	*/
-
-	// **OLD** hier geht es zur Inferenz weiter
-	/*if(init_inf()) {
-	    printf("Throw exception in init_inf()!  \n");
-		return 1; 
-	}*/
-
-
-	/*if(inference()) {
-	    printf("Throw exception in inference()!  \n");
-		return 1; 
-	}*/
-
+	for (size_t epoch = time_slices+1; epoch < 6; epoch++) {
+		trainNextModel(epoch);
+		// update the sliding window of word distributions
+		std::rotate(sliding_window_phi.begin(), sliding_window_phi.begin() + 1, sliding_window_phi.end());
+		sliding_window_phi.pop_back();
+		sliding_window_phi.push_back(newphi_lzw);
+	}
+	
     return 0;
 }
 
@@ -1912,7 +1900,6 @@ int Inference::save_model_newtwords1(string filename) {
 	}
 
 	for (int l = 0; l < numSentiLabs; l++) {
-		fprintf(fout, "Label %dth\n", l);
 		for (int k = 0; k < numTopics; k++) {
 			vector<pair<int, double> > words_probs;
 			pair<int, double> word_prob;

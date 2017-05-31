@@ -939,7 +939,7 @@ int model::save_model_others(string filename) {
 int model::init_estimate() {
 
     int sentiLab, topic;
-	srand(time(0)); // initialize for random number generation
+	//srand(time(0)); // initialize for random number generation
 	z.resize(numDocs);
 	l.resize(numDocs);
 
@@ -989,7 +989,7 @@ int model::init_estimate1() {
 	numDocs = pdataset->numDocs;
 
 	int sentiLab, topic;
-	srand(time(0)); // initialize for random number generation
+	//srand(time(0)); // initialize for random number generation
 	z.resize(numDocs);
 	l.resize(numDocs);
 

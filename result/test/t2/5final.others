@@ -1,0 +1,16 @@
+model_dir=C:\Users\kmr\Downloads\JST-master\JST-master\result\test\t2/
+model_name=final
+data_dir=C:\Users\kmr\Downloads\JST-master\JST-master\data/
+datasetFile=Test.dat
+result_dir=C:\Users\kmr\Downloads\JST-master\JST-master\result\test\t2/
+niters-djst=100
+savestep-djst=20
+
+------------------ Testset ** Test.dat ** statistics ----------------------
+newNumDocs=3
+newCorpusSize=300
+newVocabSize=308
+numNewWords=219
+aveDocLength=100
+numSentiLabs=3
+numTopics=1

@@ -182,6 +182,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\dataset.cpp" />
+    <ClCompile Include="src\djst.cpp" />
     <ClCompile Include="src\inference.cpp" />
     <ClCompile Include="src\inference1.cpp" />
     <ClCompile Include="src\inference2.cpp" />
@@ -198,6 +199,7 @@
     <ClInclude Include="src\cokus.h" />
     <ClInclude Include="src\constants.h" />
     <ClInclude Include="src\dataset.h" />
+    <ClInclude Include="src\djst.h" />
     <ClInclude Include="src\document.h" />
     <ClInclude Include="src\inference.h" />
     <ClInclude Include="src\map_type.h" />

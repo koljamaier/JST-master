@@ -35,6 +35,7 @@ USA
 #include "utils.h"
 #include "model.h"
 #include "inference.h"
+#include "djst.h"
 #include "dataset.h"
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -90,7 +91,7 @@ int utils::parse_args(int argc, char ** argv, int&  model_status) {
 			model_status = MODEL_STATUS_EST;
 			break;
 		}
-		else if (arg == "-estc") {
+		else if (arg == "-djst") {
 			model_status = MODEL_STATUS_ESTC;
 			break;
 		}
@@ -258,6 +259,87 @@ int utils::parse_args_inf(int argc, char ** argv, Inference * pmodel_inf) {
 	if (numTopics > 0) pmodel_inf->numTopics = numTopics; // added
 
     return 0;
+}
+
+int utils::parse_args_djst(int argc, char ** argv, djst * pmodel_djst) {
+
+	int i = 1;
+	while (i < argc) {
+		string arg = argv[i];
+		printf("arg=%s\n", arg.c_str());
+		if (arg == "-config") {
+			configfile = argv[++i];
+			break;
+		}
+		i++;
+	}
+	if (configfile != "") {
+		// Wie für est lesen wir hier zunächst die Config-Parameter aus der .txt
+		// Beachte: Hier können wir auch die option angeben das bereits bekannte Vokabular (über wordmap.txt) einzubinden
+		if (read_config_file(configfile)) return 1;
+	}
+
+	// Im Folgenden werden die Werte dann gesetzt
+	if (wordmapfile != "")
+		pmodel_djst->wordmapfile = wordmapfile;
+
+	if (sentiLexFile != "")
+		pmodel_djst->sentiLexFile = sentiLexFile;
+
+	if (datasetFile != "")
+		pmodel_djst->datasetFile = datasetFile;
+	else {
+		printf("Please specify input dataset file!\n");
+		return 1;
+	}
+
+	// Der Pfad des bereits trainierten Modells
+	if (model_dir != "") {
+		if (model_dir[model_dir.size() - 1] != '/') model_dir += "/";
+		pmodel_djst->model_dir = model_dir;
+	}
+
+	// Pfad für die (neuen) Daten
+	if (data_dir != "") {
+		if (data_dir[data_dir.size() - 1] != '/') data_dir += "/";
+		pmodel_djst->data_dir = data_dir;
+	}
+	else {
+		printf("Please specify input data dir!\n");
+		return 1;
+	}
+
+	// Pfad für das Ergebnis der Inferenz (auf den neuen Daten)
+	if (result_dir != "") {
+		if (make_dir(result_dir)) return 1;
+		if (result_dir[result_dir.size() - 1] != '/') result_dir += "/";
+		pmodel_djst->result_dir = result_dir;
+	}
+	else {
+		printf("Please specify output dir!\n");
+		return 1;
+	}
+
+	// Name des trainierten EST Modells! Unter diesem Namen werden die Parameter des trainierten Modells gesucht und geladen z.B. "00100.final.newtassign"
+	if (model_name != "")
+		pmodel_djst->model_name = model_name;
+	else {
+		printf("Please specify the trained dJST model name!\n");
+		return 1;
+	}
+
+	if (niters > 0) pmodel_djst->niters = niters;
+	if (twords > 0) pmodel_djst->twords = twords;
+	if (savestep > 0) pmodel_djst->savestep = savestep;
+	if (updateParaStep > 0) pmodel_djst->updateParaStep = updateParaStep;
+	if (alpha > 0.0) pmodel_djst->_alpha = alpha;
+	if (beta > 0.0) pmodel_djst->_beta = beta;
+	if (gamma > 0.0) pmodel_djst->_gamma = gamma;
+	if (time_slices > 0) pmodel_djst->time_slices = time_slices; // added
+	if (numSentiLabs > 0) pmodel_djst->numSentiLabs = numSentiLabs; // added
+	if (numTopics > 0) pmodel_djst->numTopics = numTopics; // added
+
+	return 0;
 }
 
 
