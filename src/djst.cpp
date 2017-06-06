@@ -50,6 +50,9 @@ djst::~djst(void) {
 	
 	if (pnewData)
 		delete pnewData;
+
+	if (firstModel)	// added
+		delete firstModel;
 }
 
 
@@ -74,7 +77,7 @@ int djst::init(int argc, char ** argv) {
 		printf("Throw exception in initFirstModel()!\n");
 		return 1;
 	}
-	sliding_window_phi.push_back(firstModel->phi_lzw);
+	sliding_window_phi.push_back(firstModel->sigma_lzw);
 
 
 	// Die ersten drei Modelle werden unabhängig voneinander trainiert
@@ -84,8 +87,9 @@ int djst::init(int argc, char ** argv) {
 			printf("Throw exception in initNewModel(), NO %d!\n", epoch);
 			return 1;
 		}
-	sliding_window_phi.push_back(firstModel->phi_lzw);
+	sliding_window_phi.push_back(firstModel->sigma_lzw);
 	}
+	//delete firstModel;
 
 	// train djst model (taking old models into account) as long as new data is available
 	for (size_t epoch = time_slices+1; epoch < 6; epoch++) {
@@ -93,9 +97,9 @@ int djst::init(int argc, char ** argv) {
 		// update the sliding window of word distributions
 		std::rotate(sliding_window_phi.begin(), sliding_window_phi.begin() + 1, sliding_window_phi.end());
 		sliding_window_phi.pop_back();
-		sliding_window_phi.push_back(newphi_lzw);
+		sliding_window_phi.push_back(newsigma_lzw);
 	}
-	
+
     return 0;
 }
 
@@ -233,31 +237,33 @@ int djst::djst_estimate(int epoch) {
 	compute_newpi1();
 	compute_newtheta();
 	compute_newphi1();
-	// mapping back. this is the important difference to estimate(int epoch) func
-	/*vector<vector<vector<double> > > phi_lzw1(newphi_lzw); // copy
-	vocabSize = pnewData->vocabSize; // overall vocabsize
-	newphi_lzw.resize(numSentiLabs);
+
+
+	vocabSize = pnewData->vocabSize;
+	expected_counts_lzw.resize(numSentiLabs);
 	for (int l = 0; l < numSentiLabs; l++) {
-		newphi_lzw[l].resize(numTopics);
+		expected_counts_lzw[l].resize(numTopics);
 		for (int z = 0; z < numTopics; z++) {
-			newphi_lzw[l][z].resize(vocabSize);
+			expected_counts_lzw[l][z].resize(vocabSize);
 			for (int r = 0; r < vocabSize; r++) {
-				newphi_lzw[l][z][r] = 0;
+				expected_counts_lzw[l][z][r] = newphi_lzw[l][z][r]*new_nlzw[l][z][r];
+				expected_counts_sum_lz[l][z] += expected_counts_lzw[l][z][r];
 			}
 		}
 	}
 
-	map<int, int>::iterator idIt;
+
 	for (int l = 0; l < numSentiLabs; l++) {
+		newsigma_lzw[l].resize(numTopics);
 		for (int z = 0; z < numTopics; z++) {
-			for (int r = 0; r < pnewData->id2_id.size(); r++) {
-				idIt = pnewData->_id2id.find(r); //find global Word-ID
-				if (idIt != pnewData->_id2id.end()) {
-					newphi_lzw[l][z][idIt->second] = phi_lzw1[l][z][r];
+			newsigma_lzw[l][z].resize(vocabSize);
+			for (int r = 0; r < vocabSize; r++) {
+				if (expected_counts_sum_lz[l][z] != 0) {
+					newsigma_lzw[l][z][r] = (expected_counts_lzw[l][z][r] / expected_counts_sum_lz[l][z]);
 				}
 			}
 		}
-	}*/
+	}
 
 	save_model(putils->generate_model_name(-1), epoch);
 	return 0;
@@ -284,6 +290,7 @@ int djst::djst_sampling(int m, int n, int& sentiLab, int& topic) {
 	// do multinomial sampling via cumulative method
 	for (int l = 0; l < numSentiLabs; l++) {
 		for (int k = 0; k < numTopics; k++) {
+			// TODO exchange betaSum_lz for µ
 			new_p[l][k] = (new_nlzw[l][k][w] + beta_lzw[l][k][w]) / (new_nlz[l][k] + betaSum_lz[l][k]) *
 				(new_ndlz[m][l][k] + alpha_lz[l][k]) / (new_ndl[m][l] + alphaSum_l[l]) *
 				(new_ndl[m][l] + gamma_dl[m][l]) / (new_nd[m] + gammaSum_d[m]);
@@ -433,15 +440,9 @@ int djst::initNewModel(int epoch) {
 	}
 
 	// load model old model in pmodelData
-	if (load_model(model_dir + model_name + ".tassign")) {
+	/*if (load_model(model_dir + model_name + ".tassign")) {
 		printf("Throw exception in load_model()!\n");
 		return 1;
-	}
-
-	// *** TODO move the function to dataset class
-	/*if(read_newData(data_dir + datasetFile)) {
-	printf("Throw exception in read_newData()!\n");
-	return 1;
 	}*/
 
 	if (sentiLexFile != "") {
@@ -1076,6 +1077,26 @@ int djst::init_parameters2() {
 		}
 	}
 
+	// added
+	expected_counts_lzw.resize(numSentiLabs);
+	expected_counts_sum_lz.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		expected_counts_lzw[l].resize(numTopics);
+		expected_counts_sum_lz[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			expected_counts_lzw[l][z].resize(pnewData->vocabSize);
+		}
+	}
+
+	// added
+	newsigma_lzw.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		newsigma_lzw[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			newsigma_lzw[l][z].resize(pnewData->vocabSize);
+		}
+	}
+
 	// hyperparameters
 	_alpha = (double)pnewData->aveDocLength * 0.05 / (double)(numSentiLabs * numTopics);
 	alpha_lz.resize(numSentiLabs);
@@ -1501,6 +1522,7 @@ int djst::prior2beta2() {
 	mapword2atr::iterator wordIt;
 	mapword2prior::iterator sentiIt;
 
+	// TODO Performance: diese schleife outsourcen und lambda_lw global setzen. So berechnen wir es nicht jedes mal
 	for (sentiIt = sentiLex.begin(); sentiIt != sentiLex.end(); sentiIt++) {
 		wordIt = word2atr.find(sentiIt->first);
 		if (wordIt != word2atr.end()) {
@@ -1516,17 +1538,16 @@ int djst::prior2beta2() {
 	map<int, int>::iterator idIt;
 	for (int l = 0; l < numSentiLabs; l++) {
 		for (int z = 0; z < numTopics; z++) {
+			// TODO was passiert wenn folgende Zeile auskommentiert wird?
 			betaSum_lz[l][z] = 0.0;
 			for (int r = 0; r < pnewData->vocabSize; r++) {
-				//idIt = pnewData->_id2id.find(r); //find global Word-ID
-				//if (idIt != pnewData->_id2id.end()) {
-				if (std::find(pnewData->newWords1.begin(), pnewData->newWords1.end(), r) != pnewData->newWords1.end()) { // check if word r was new
-					beta_lzw[l][z][r] = beta_lzw[l][z][r] * lambda_lw[l][r];
+				// sentiIt = sentiLex.find(id2word[r]); // check wether word r is sentiment bearing (in mpqa)
+				if (std::find(pnewData->newWords1.begin(), pnewData->newWords1.end(), r) != pnewData->newWords1.end() /*|| sentiIt != sentiLex.end()*/) { // check if glob. word r was new
+					beta_lzw[l][z][r] = beta_lzw[l][z][r] * lambda_lw[l][r]; // if the word is new we only incorporate standard prior (lambda) information from mpqa
 				}
-				else { // word isn't new
+				else { // word isn't new and also no sentiment-bearing word
 					// Rechenvorschrift für dJST (Update-Regel Sliding Window)
-					for (size_t i = 0; i < sliding_window_phi.size(); i++)
-					{
+					for (size_t i = 0; i < sliding_window_phi.size(); i++) {
 						beta_lzw[l][z][r] += sliding_window_phi[i][l][z][r] * window_weights[i];
 					}
 				}
@@ -1598,29 +1619,6 @@ int djst::save_model(string model_name, int epoch) {
 		return 1;
 
 	if (save_model_newothers1(result_dir + std::to_string(epoch) + model_name + others_suffix))
-		return 1;
-
-	return 0;
-}
-
-int djst::save_model(string model_name) {
-
-	if (save_model_newtassign(result_dir + model_name + tassign_suffix))
-		return 1;
-
-	if (save_model_newtwords(result_dir + model_name + twords_suffix))
-		return 1;
-
-	if (save_model_newpi_dl(result_dir + model_name + pi_suffix))
-		return 1;
-
-	if (save_model_newtheta_dlz(result_dir + model_name + theta_suffix))
-		return 1;
-
-	if (save_model_newphi_lzw(result_dir + model_name + phi_suffix))
-		return 1;
-
-	if (save_model_newothers(result_dir + model_name + others_suffix))
 		return 1;
 
 	return 0;

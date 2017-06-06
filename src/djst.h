@@ -133,6 +133,10 @@ public:
 	vector<vector<vector<double> > > newtheta_dlz; // size: (numDocs x L x T) 
 	vector<vector<vector<double> > > newphi_lzw; // size: (L x T x V)
 
+	vector<vector<vector<double> > > expected_counts_lzw; // added; for better djst estimation
+	vector<vector<vector<double> > > newsigma_lzw; // added; for better djst estimation
+	vector<vector<double> > expected_counts_sum_lz; // added;
+
 	vector<vector<vector<vector<double> > > > sliding_window_phi; // added; size: (time_slices x L x T x V)
 	double window_weights[3] = { 0.2, 0.3, 0.5}; // added; das ist der µ-Parameter für die Zeitfenster-Gewichtung
 
@@ -196,7 +200,6 @@ public:
 	int compute_newphi();
 
 	// save new data models
-	int save_model(string model_name);
     int save_model_newtassign(string filename);
     int save_model_newpi_dl(string filename);
     int save_model_newtheta_dlz(string filename);

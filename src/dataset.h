@@ -113,6 +113,8 @@ public:
 	
 	int read_dataStream(ifstream& fin);
 	int read_dataStream1(ifstream& fin);
+	int read_dataStream2(ifstream& fin); // added for all_jst
+
 	/// <summary>
 	/// This function analyzes the new corpus of documents.
 	/// It will process each word and include it into the mappings.

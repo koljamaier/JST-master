@@ -130,8 +130,7 @@ int utils::parse_args_est(int argc, char ** argv, model * pmodel) {
 	}
 
 	// In den folgenden Zeilen werden alle gelesenen Parameter in das Modell geschrieben
-	
-	if (wordmapfile != "")   
+	if (wordmapfile != "")
 		pmodel->wordmapfile = wordmapfile;
 			
 	if (sentiLexFile != "")

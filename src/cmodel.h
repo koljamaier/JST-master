@@ -1,138 +1,268 @@
 #pragma once
-/**********************************************************************
-Joint Sentiment-Topic (JST) Model
-***********************************************************************/
 
+#ifndef	_CMODEL_H
+#define	_CMODEL_H
 
-#ifndef _CMODEL_H
-#define _CMODEL_H
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #include <sys/stat.h>
 #include <math.h>
-#include <iostream>
 #include <fstream>
-#include "constants.h"
-#include "document.h"
+#include <sstream>
+#include <iostream>
+#include <vector>
+
 #include "dataset.h"
+#include "document.h"
+#include "map_type.h"
 #include "utils.h"
+#include "math_func.h"
+#include "polya_fit_simple.h"
 #include "strtokenizer.h"
 
+using namespace std;
+/// <summary>
+/// Offers parameters and functions to train a single
+/// time slice JST model.
+/// </summary>
+class model {
 
-/// <exclude />
-class cmodel {
+public:
+	model(void);
+	~model(void);
 
-	public:
-		cmodel(void);
-		~cmodel(void);
+	/// <summary>
+	/// word2atr holds the global vocabulary map (string, Word_atr)
+	/// </summary>
+	mapword2atr word2atr;
 
-		int numSentiLabs;
-		int numTopics;
-		int numDocs;      // for trained model
-		int vocabSize;    // for trained model
-		int newNumDocs;   // for test set
-		int newVocabSize; // for test set
+	/// <summary>
+	/// id2word holds the global vocabulary map (int, string)
+	/// Every word (string) holds a unique Word-ID (int)
+	/// </summary>
+	mapid2word id2word;
+	mapword2prior sentiLex; // <word, [senti lab, word prior distribution]>
 
-		vector<vector<vector<int> > > nlzw; // for trained model
-		vector<vector<int> > nlz;  // for trained model
-		mapword2atr word2atr; // (string, Word_atr)
-		mapword2id word2id; // (string, int)
-		mapid2word id2word; // (int, string)
-		map<int, int> id2_id; // (Wort-ID, Index) Eine Map, welche Wort-IDs und deren Index pflegt (für neue docs)
-		map<int, int> _id2id; // Diese Map speichert dagegen (Index, Wort-ID)
-		mapword2prior sentiLex; // <string, int> => <word, polarity>
-		vector<string> newWords;
+	string data_dir;
+	string datasetFile;
+	string result_dir;
+	string sentiLexFile;
+	string wordmapfile;
+	string tassign_suffix;
+	string pi_suffix;
+	string theta_suffix;
+	string phi_suffix;
+	string others_suffix;
+	string twords_suffix;
 
-		string model_dir;
-		string model_name;
-		string data_dir;
-		string datasetFile;
-		string result_dir;
-		string sentiLexFile;
-		string wordmapfile;
-		string betaFile;
+	int numTopics;
+	int numSentiLabs;
+	int niters;
+	int liter;
+	int twords;
+	int savestep;
+	int updateParaStep;
+	double _alpha;
+	double _beta;
+	double _gamma;
 
-		string tassign_suffix;
-		string pi_suffix;
-		string theta_suffix;
-		string phi_suffix;
-		string others_suffix;
-		string twords_suffix;
-
-		dataset * pmodelData;	// pointer to trained model object
-		dataset * pnewData; // pointer to new/test dataset object
-		utils * putils;
-
-		int niters;
-		int liter;
-		int twords;
-		int savestep;
-		int updateParaStep;
-
-		double _alpha;
-		double _beta;
-		double _gamma;
-
-		vector<vector<double> > new_p; // for posterior
-		vector<vector<int> > new_z;
-		vector<vector<int> > new_l;
-		vector<vector<int> > z;  // for trained model
-		vector<vector<int> > l;  // for trained model
+	// model parameters
+	vector<vector<double> > pi_dl; // size: (numDocs x L)
+	vector<vector<vector<double> > > theta_dlz; // size: (numDocs x L x T) 
+	vector<vector<vector<double> > > phi_lzw; // size: (L x T x V)
 
 
-		// from NEW/test documents
-		vector<int> new_nd; // number of words in a document d
-		vector<vector<int> > new_ndl; // counter for sentiment-state per document (wieviele counts an Senti-Labels hat also ein gewisses Doc)
-		vector<vector<vector<int> > > new_ndlz; // counter for sentiment-topic-state per document
-		vector<vector<vector<int> > > new_nlzw; // counter for individual word-to-topic-sentiment assignment (wie oft taucht Wort w mit diesem topic&sentiment auf)
-		vector<vector<int> > new_nlz; // counter for sentilabels per topic
+											  /// <summary>
+											  /// This function loads the parameters specified in .properties file.
+											  /// Internally it calls <see cref="T:utils"/>-><see cref="M:utils.parse_args_est"/>.
+											  /// </summary>
+											  /// <returns></returns>
+	int init(int argc, char ** argv);
 
-		// hyperparameters 
-		vector<vector<double> > alpha_lz; // size: (L x T)
-		vector<double> alphaSum_l;
-		vector<vector<vector<double> > > beta_lzw; // size: (L x T x V)
-		vector<vector<double> > betaSum_lz;
-		vector<double> gamma_l; // size: (L)
-		double gammaSum;
-		vector<vector<double> > lambda_lw; // size: (L x V) -- for encoding prior sentiment information 
+	/// <summary>
+	/// Trains the JST model on specified data set in .properties
+	/// </summary>
+	/// <returns></returns>
+	int execute_model();
 
-		// model parameters
-		vector<vector<double> > newpi_dl; // size: (numDocs x L)
-		vector<vector<vector<double> > > newtheta_dlz; // size: (numDocs x L x T) 
-		vector<vector<vector<double> > > newphi_lzw; // size: (L x T x V)
+	/// <summary>
+	/// Initializes the first model for the dJST model.
+	/// The model will be trained on data collected for the first time step.
+	/// </summary>
+	/// <returns></returns>
+	int initFirstModel();
 
-		// functions 
+	/// <summary>
+	/// Initializes a new model for the specified time slot <paramref name="epoch" />.
+	/// </summary>
+	/// <param name="epoch">The epoch on which the model will be trained.</param>
+	/// <returns></returns>
+	int initNewModel(int epoch, string model_dir);
 
-		int init(int argc, char ** argv);
-		int init_inf();
-		int inference(); // inference for new (unseen) data based on previously trained model
-		int inf_sampling(int m, int n, int& sentiLab, int& topic);
-		int init_parameters();
+	// added
+	// Declaration of counts
+	vector<vector<double> > new_p; // for posterior
+	vector<vector<int> > new_z;
+	vector<vector<int> > new_l;
+	vector<int> new_nd; // number of words in a document d
+	vector<vector<int> > new_ndl; // counter for sentiment-state per document (wieviele counts an Senti-Labels hat also ein gewisses Doc)
+	vector<vector<vector<int> > > new_ndlz; // counter for sentiment-topic-state per document
+	vector<vector<vector<int> > > new_nlzw; // counter for individual word-to-topic-sentiment assignment (wie oft taucht Wort w mit diesem topic&sentiment auf)
+	vector<vector<int> > new_nlz; // counter for sentilabels per topic
+	vector<vector<double> > newpi_dl; // size: (numDocs x L)
+	vector<vector<vector<double> > > newtheta_dlz; // size: (numDocs x L x T) 
+	vector<vector<vector<double> > > newphi_lzw; // size: (L x T x V)
 
-		// dJST functions
-		int init_estimate();
-		int c_estimate();
-		int c_sampling(int m, int n, int& sentiLab, int& topic); // angepasste Version von sampling, welche das neue Beta einbezieht
+private:
+	/// <summary>
+	/// Refer to <see cref="F:dataset.numDocs"/>.
+	/// </summary>
+	int numDocs;
+	/// <summary>
+	/// Refer to <see cref="F:dataset.vocabSize"/>.
+	/// </summary>
+	int vocabSize;
+	/// <summary>
+	/// Refer to <see cref="F:dataset.corpusSize"/>.
+	/// </summary>
+	int corpusSize;
+	/// <summary>
+	/// Refer to <see cref="F:dataset.corpusSize"/>.
+	/// </summary>
+	int aveDocLength;
 
+	ifstream fin;
+	dataset * pdataset;
+	utils * putils;
 
+	// model counts
+	vector<int> nd; // number of words in a document d
+	vector<vector<int> > ndl; // counter for sentiment-state per document
+	vector<vector<vector<int> > > ndlz; // counter for sentiment-topic-state per document
+	vector<vector<vector<int> > > nlzw; // counter for individual word-to-topic-sentiment assignment
+	vector<vector<int> > nlz; // counter for sentilabels per topic
 
-		int read_newData(string filename);
-		int read_model_setting(string filename);
-		int load_model(string model_name);
-		int prior2beta(); // for incorporating prior information
+							  // topic and label assignments
+	vector<vector<double> > p;
+	vector<vector<int> > z;
+	vector<vector<int> > l;
 
-		// compute model parameters
-		void compute_newpi();
-		void compute_newtheta();
-		int compute_newphi();
+	// hyperparameters 
+	vector<vector<double> > alpha_lz; // \alpha_tlz size: (L x T)
+	vector<double> alphaSum_l;
+	vector<vector<vector<double> > > beta_lzw; // size: (L x T x V)
+	vector<vector<double> > betaSum_lz;
+	vector<vector<double> > gamma_dl; // size: (numDocs x L)
+	vector<double> gammaSum_d;
+	vector<vector<double> > lambda_lw; // size: (L x V) -- for encoding prior sentiment information 
 
-		// save new data models
-		int save_model(string model_name);
-		int save_model_newtassign(string filename);
-		int save_model_newpi_dl(string filename);
-		int save_model_newtheta_dlz(string filename);
-		int save_model_newphi_lzw(string filename);
-		int save_model_newothers(string filename);
-		int save_model_newtwords(string filename);
-	};
+	vector<vector<double> > opt_alpha_lz;  //optimal value, size:(L x T) -- for storing the optimal value of alpha_lz after fix point iteration
+
+										   /************************* Functions ***************************/
+	int set_gamma();
+
+	/// <summary>
+	/// Initializes model parameters like <see cref="F:model.numDocs" />.
+	/// Also the counts will be resized according to the current data.
+	/// </summary>
+	/// <returns></returns>
+	int init_model_parameters();
+
+	/// <summary>
+	/// Initializes the model parameters like <see cref="F:model.numDocs" />.
+	/// Also the counts will be resized according to the current data.
+	/// In contrast to <see cref="M:model.init_model_parameters" /> this method is designed
+	/// to work for continious data.
+	/// </summary>
+	/// <returns></returns>
+	int init_model_parameters1();
+
+	inline int delete_model_parameters() {
+		numDocs = 0;
+		vocabSize = 0;
+		corpusSize = 0;
+		aveDocLength = 0;
+
+		if (pdataset != NULL) {
+			delete pdataset;
+			pdataset = NULL;
+		}
+
+		return 0;
+	}
+
+	/// <summary>
+	/// The model gets prepared for the training phase.
+	/// By this, the counts necessary for the Gibbs Sampler will be initialized.
+	/// </summary>
+	/// <returns></returns>
+	int init_estimate();
+	int init_estimate1();
+
+	/// <summary>
+	/// In this function the model is trained.
+	/// This includes the Gibbs Sampling procedure and the
+	/// re-estimation of the parameters (phi, pi,...) based
+	/// on the new sampled counts.
+	/// </summary>
+	/// <returns></returns>
+	int estimate();
+
+	/// <summary>
+	/// A single model is trained like in <see cref="M:model.estimate" />.
+	/// The difference is that we only train on the data restricted at that
+	/// time <paramref name="epoch" />
+	/// </summary>
+	/// <returns></returns>
+	int estimate(int epoch);
+	int estimate1(int epoch);
+	int prior2beta();
+	int prior2beta1(); // added
+
+					   /// <summary>
+					   /// The Gibbs Sampling procedure is specified in this function.
+					   /// New Topic- and Senti-Labels have been sampled after running this method.
+					   /// </summary>
+					   /// <returns></returns>
+	int sampling(int m, int n, int& sentiLab, int& topic);
+	int sampling1(int m, int n, int& sentiLab, int& topic);
+
+	// compute parameter functions
+	/// <summary>
+	/// Estimates the pi parameter based on the new samples.
+	/// </summary>
+	void compute_pi_dl();
+
+	/// <summary>
+	/// Estimates the theta parameter based on the new samples.
+	/// </summary>
+	void compute_theta_dlz();
+
+	/// <summary>
+	/// Estimates the phi parameter based on the new samples.
+	/// </summary>
+	void compute_phi_lzw();
+
+	void compute_phi_lzw1(); // added
+
+							 // update parameter functions
+	void init_parameters();
+	int update_Parameters();
+
+	// save model parameter funtions 
+	int save_model(string model_name);
+	int save_model1(string model_name);
+	int save_model(string model_name, int epoch); // added
+	int save_model1(string model_name, int epoch);
+	int save_model_tassign(string filename);
+	int save_model_pi_dl(string filename);
+	int save_model_theta_dlz(string filename);
+	int save_model_phi_lzw(string filename);
+	int save_model_phi_lzw1(string filename);
+	int save_model_others(string filename);
+	int save_model_twords(string filename);
+	int save_model_twords1(string filename);
+};
 
 #endif

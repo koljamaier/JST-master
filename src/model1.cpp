@@ -34,6 +34,8 @@ using namespace std;
 /// Initializes a new instance of the <see cref="T:model"/> class.
 /// </summary>
 model::model(void) {
+	word2atr.clear(); // added
+	id2word.clear();
 
 	wordmapfile = "wordmap.txt";
 	tassign_suffix = ".tassign";
@@ -70,6 +72,8 @@ model::model(void) {
 model::~model(void) {
 	if (putils) delete putils;
 	if (pdataset) delete pdataset; // added
+	//word2atr.clear(); // added
+	//id2word.clear();  // added
 }
 
 
@@ -186,18 +190,19 @@ int model::execute_model() {
 	}
 				
 	// read training data
-	fin.open((data_dir+datasetFile).c_str(), ifstream::in);
+	fin.open((data_dir+"all_jst.dat").c_str(), ifstream::in);
 	if(!fin) {
-	    printf("Error! Cannot read dataset %s!\n", (data_dir+datasetFile).c_str());
+	    printf("Error! Cannot read dataset %s!\n", (data_dir+"all_jst.dat").c_str());
 	    return 1;
 	}
+	//word2atr.clear(); // added
+	//id2word.clear(); // added
 	// Dort wird analyzeCorpus aufgerufen, um die Trainingsdaten zu verarbeiten
-    if(pdataset->read_dataStream(fin)) {
+    if(pdataset->read_dataStream2(fin)) {
 		printf("Throw exception in function read_dataStream()! \n");
 		delete pdataset;
 		return 1;
 	}
-
 	word2atr = pdataset->word2atr; // "access {2984, sentiLabel}"
 	id2word =  pdataset->id2word; // "2984 access"
 	init_model_parameters();
@@ -288,6 +293,18 @@ int model::init_model_parameters()
 		}
 	}
 
+	// added
+	sigma_lzw.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		sigma_lzw[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			sigma_lzw[l][z].resize(vocabSize);
+			for (int r = 0; r < vocabSize; r++) {
+				sigma_lzw[l][z][r] = 1.0/vocabSize;
+			}
+		}
+	}
+
 	// init hyperparameters
 	alpha_lz.resize(numSentiLabs);
 	for (int l = 0; l < numSentiLabs; l++) {
@@ -342,7 +359,6 @@ int model::init_model_parameters()
 	// incorporate prior information into beta
 	this->prior2beta();
 	this->set_gamma();
-	printf("Model counts alive! \n");
 	return 0;
 }
 
@@ -423,9 +439,18 @@ int model::init_model_parameters1()
 		phi_lzw[l].resize(numTopics);
 		for (int z = 0; z < numTopics; z++) {
 			phi_lzw[l][z].resize(vocabSize1);
-			for (int r = 0; r < numTopics; r++) {
-				phi_lzw[l][z][r];
-			}
+			//for (int r = 0; r < numTopics; r++) {
+			//	phi_lzw[l][z][r];
+			//}
+		}
+	}
+
+	// added
+	sigma_lzw.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		sigma_lzw[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			sigma_lzw[l][z].resize(vocabSize1);
 		}
 	}
 
@@ -483,7 +508,6 @@ int model::init_model_parameters1()
 	// incorporate prior information into beta
 	this->prior2beta1();
 	this->set_gamma();
-	printf("Model counts alive! \n");
 	return 0;
 }
 
@@ -741,7 +765,7 @@ int model::save_model_twords(string filename) {
     if (twords > vocabSize) {
 	    twords = vocabSize; // print out entire vocab list
     }
-	twords = vocabSize; // added
+	//twords = vocabSize; // added
     
     mapid2word::iterator it;
    
@@ -1066,7 +1090,7 @@ int model::estimate() {
 			compute_pi_dl();
 			compute_theta_dlz();
 			compute_phi_lzw();
-			save_model(putils->generate_model_name(liter));
+			//save_model(putils->generate_model_name(liter));
 		}
 	}
 	
@@ -1075,7 +1099,7 @@ int model::estimate() {
 	compute_pi_dl();
 	compute_theta_dlz();
 	compute_phi_lzw();
-	save_model(putils->generate_model_name(-1));
+	save_model(putils->generate_model_name(-1)+"_all_jst");
 	
 	return 0;
 }
@@ -1174,8 +1198,10 @@ int model::estimate1(int epoch) {
 		phi_lzw[l].resize(numTopics);
 		for (int z = 0; z < numTopics; z++) {
 			phi_lzw[l][z].resize(vocabSize);
+			sigma_lzw[l][z].resize(vocabSize);
 			for (int r = 0; r < vocabSize; r++) {
 				phi_lzw[l][z][r] = 0;
+				sigma_lzw[l][z][r] = 0;
 			}
 		}
 	}
@@ -1187,6 +1213,7 @@ int model::estimate1(int epoch) {
 				idIt = pdataset->_id2id.find(r); //find global Word-ID
 				if (idIt != pdataset->_id2id.end()) {
 				phi_lzw[l][z][idIt->second] = phi_lzw1[l][z][r];
+				sigma_lzw[l][z][idIt->second] = (1.0/(pdataset->id2_id.size()));
 				}
 			}
 		}

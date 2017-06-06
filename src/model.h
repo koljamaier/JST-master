@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef	_MODEL_H
 #define	_MODEL_H
 
@@ -70,6 +72,8 @@ public:
 	vector<vector<vector<double> > > theta_dlz; // size: (numDocs x L x T) 
 	vector<vector<vector<double> > > phi_lzw; // size: (L x T x V)
 
+	// added; for correct djst-estimation
+	vector<vector<vector<double> > > sigma_lzw; // size: (L x T x V)
 
 	/// <summary>
 	/// This function loads the parameters specified in .properties file.

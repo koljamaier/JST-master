@@ -121,6 +121,30 @@ int dataset::read_dataStream(ifstream& fin) {
 	return 0;
 }
 
+int dataset::read_dataStream2(ifstream& fin) {
+	string line;
+	char buff[BUFF_SIZE_LONG];
+	docs.clear();
+	numDocs = 0;
+
+	while (fin.getline(buff, BUFF_SIZE_LONG)) {
+		line = buff;
+		if (!line.empty()) {
+			// docs ist ein vector und kann damit dynamisch erweitert werden.
+			// "getline" liest jedoch nur bis zu einem Zeilenumbruch (\n). Dies entspricht bei unserem Datenformat also genau einem Dokument
+			// Es werden hier also alle Trainingsdokumente geladen
+			docs.push_back(line);
+			numDocs++;
+		}
+	}
+
+	if (numDocs > 0) {
+		this->analyzeNewCorpus(docs);
+	}
+
+	return 0;
+}
+
 int dataset::read_dataStream1(ifstream& fin) {
 	string line;
 	char buff[BUFF_SIZE_LONG];
@@ -234,7 +258,7 @@ int dataset::analyzeCorpus(vector<string>& docs) {
 		printf("ERROR! Can not read wordmap file %s!\n", wordmapfile.c_str());
 		return 1;
 	}
-	/*if (write_wordmap(result_dir +"1"+ wordmapfile, word2atr)) {
+	/*if (write_wordmap(result_dir +"wordmap1.txt", word2atr)) {
 		printf("ERROR! Can not write wordmap file %s!\n", wordmapfile.c_str());
 		return 1;
 	}*/
@@ -322,14 +346,18 @@ int dataset::analyzeNewCorpus(vector<string>& docs) {
 	vocabSize = word2atr.size();
 	aveDocLength = corpusSize / numDocs;
 
-	if (write_wordmap(result_dir + wordmapfile, word2atr)) {
+	if (write_wordmap(result_dir + "wordmap1.txt", word2atr)) {
+		printf("ERROR! Can not write wordmap file %s!\n", "wordmap1.txt");
+		return 1;
+	}
+	if (read_wordmap(result_dir + "wordmap1.txt", id2word)) {
+		printf("ERROR! Can not read wordmap file %s!\n", "wordmap1.txt");
+		return 1;
+	}
+	/*if (write_wordmap(result_dir + "wordmap1.txt", word2atr)) {
 		printf("ERROR! Can not write wordmap file %s!\n", wordmapfile.c_str());
 		return 1;
-	}
-	if (read_wordmap(result_dir + wordmapfile, id2word)) {
-		printf("ERROR! Can not read wordmap file %s!\n", wordmapfile.c_str());
-		return 1;
-	}
+	}*/
 
 	docs.clear();
 	return 0;

@@ -1,20 +1,20 @@
 data_dir=C:\Users\kmr\Downloads\JST-master\JST-master\data/
-datasetFile=Test.dat
+datasetFile=all_jst.dat
 result_dir=C:\Users\kmr\Downloads\JST-master\JST-master\result\test\t2/
 sentiLexFile=C:\Users\kmr\Downloads\JST-master\JST-master\data\mpqa.constraint
 
 -------------------- Corpus statistics -----------------------
-numDocs=3
-corpusSize=50
-aveDocLength=16
-vocabSize=37
+numDocs=9
+corpusSize=279
+aveDocLength=31
+vocabSize=187
 
 ---------------------- Model settings -----------------------
 numSentiLabs=3
 numTopics=1
-liter=100
+liter=800
 savestep=20
 updateParaStep=50
-_alpha=0.266667
+_alpha=0.516667
 _beta=0.010000
-_gamma=0.266667
+_gamma=0.516667
