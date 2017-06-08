@@ -185,6 +185,33 @@ private:
 		vocabSize = 0;
 		corpusSize = 0;
 		aveDocLength = 0;
+
+		liter = 0;
+		//phi_lzw.clear();
+		pi_dl.clear();
+		theta_dlz.clear();
+		//sigma_lzw.clear();
+
+		word2atr.clear();
+		id2word.clear();
+
+
+		nd.clear();
+		ndl.clear();
+		ndlz.clear();
+		nlzw.clear();
+		nlz.clear();
+		p.clear();
+		z.clear();
+		l.clear();
+		alpha_lz.clear();
+		alphaSum_l.clear();
+		beta_lzw.clear();
+		betaSum_lz.clear();
+		gamma_dl.clear();
+		gammaSum_d.clear();
+		opt_alpha_lz.clear();
+		lambda_lw.clear();
 		
 		if (pdataset != NULL) {
 			delete pdataset;

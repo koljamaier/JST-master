@@ -77,7 +77,7 @@ int djst::init(int argc, char ** argv) {
 		printf("Throw exception in initFirstModel()!\n");
 		return 1;
 	}
-	sliding_window_phi.push_back(firstModel->sigma_lzw);
+	sliding_window_phi.push_back(firstModel->phi_lzw);
 
 
 	// Die ersten drei Modelle werden unabhängig voneinander trainiert
@@ -87,17 +87,18 @@ int djst::init(int argc, char ** argv) {
 			printf("Throw exception in initNewModel(), NO %d!\n", epoch);
 			return 1;
 		}
-	sliding_window_phi.push_back(firstModel->sigma_lzw);
+	sliding_window_phi.push_back(firstModel->phi_lzw);
 	}
 	//delete firstModel;
 
 	// train djst model (taking old models into account) as long as new data is available
 	for (size_t epoch = time_slices+1; epoch < 6; epoch++) {
+		newsigma_lzw.clear();
 		trainNextModel(epoch);
 		// update the sliding window of word distributions
 		std::rotate(sliding_window_phi.begin(), sliding_window_phi.begin() + 1, sliding_window_phi.end());
 		sliding_window_phi.pop_back();
-		sliding_window_phi.push_back(newsigma_lzw);
+		sliding_window_phi.push_back(newphi_lzw);
 	}
 
     return 0;
@@ -146,7 +147,7 @@ int djst::init_djstestimate2() {
 }
 
 int djst::trainNextModel(int epoch) {
-
+	newsigma_lzw.clear();
 	pnewData = new dataset(result_dir, model_dir);
 
 	if (sentiLexFile != "") {
@@ -225,9 +226,9 @@ int djst::djst_estimate(int epoch) {
 			if (liter == niters) break;
 			printf("Iteration %d ...\n", liter); // added
 
-			compute_newpi1();
-			compute_newtheta();
-			compute_newphi1();
+		//	compute_newpi1();
+		//	compute_newtheta();
+		//	compute_newphi1();
 			//save_model1(putils->generate_model_name(liter));
 		}
 	}
@@ -239,7 +240,7 @@ int djst::djst_estimate(int epoch) {
 	compute_newphi1();
 
 
-	vocabSize = pnewData->vocabSize;
+	/*vocabSize = pnewData->vocabSize;
 	expected_counts_lzw.resize(numSentiLabs);
 	for (int l = 0; l < numSentiLabs; l++) {
 		expected_counts_lzw[l].resize(numTopics);
@@ -263,7 +264,7 @@ int djst::djst_estimate(int epoch) {
 				}
 			}
 		}
-	}
+	}*/
 
 	save_model(putils->generate_model_name(-1), epoch);
 	return 0;
@@ -275,6 +276,7 @@ int djst::djst_estimate(int epoch) {
 // (Später wird auch das globale Vokabular betrachtet; fürs Sampling selbst werden aber nur die lokalen betrachtet)
 // Achtung: Wir gehen hier mit dem lokalen Vokabular rein. Deshalb failt es!
 int djst::djst_sampling(int m, int n, int& sentiLab, int& topic) {
+	srand(1234);
 	sentiLab = new_l[m][n];
 	topic = new_z[m][n];
 

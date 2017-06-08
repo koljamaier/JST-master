@@ -141,6 +141,7 @@ int model::initFirstModel() {
 }
 
 int model::initNewModel(int epoch, string model_dir) {
+	sigma_lzw.clear();
 	printf("Init Model for time slice: %d\n", epoch);
 	pdataset = new dataset(result_dir, model_dir);
 
@@ -964,6 +965,7 @@ int model::init_estimate() {
 
     int sentiLab, topic;
 	//srand(time(0)); // initialize for random number generation
+
 	z.resize(numDocs);
 	l.resize(numDocs);
 
@@ -1012,8 +1014,9 @@ int model::init_estimate() {
 int model::init_estimate1() {
 	numDocs = pdataset->numDocs;
 
-	int sentiLab, topic;
+	int sentiLab, topic = 0;
 	//srand(time(0)); // initialize for random number generation
+	//srand(time(NULL));
 	z.resize(numDocs);
 	l.resize(numDocs);
 
@@ -1028,14 +1031,19 @@ int model::init_estimate1() {
 				return 1;
 			}
 
-			if ((pdataset->pdocs[m]->priorSentiLabels[t] > -1) && (pdataset->pdocs[m]->priorSentiLabels[t] < numSentiLabs)) {
-				sentiLab = pdataset->pdocs[m]->priorSentiLabels[t]; // incorporate prior information into the model
+			string temp = id2word[pdataset->pdocs[m]->words[t]]; // added for testing purposes
+
+			if ((pdataset->_pdocs[m]->priorSentiLabels[t] > -1) && (pdataset->_pdocs[m]->priorSentiLabels[t] < numSentiLabs)) {
+				sentiLab = pdataset->_pdocs[m]->priorSentiLabels[t]; // incorporate prior information into the model
 
 			}
 			// random initialize the senti assignment
 			else {
-				sentiLab = (int)(((double)rand() / RAND_MAX) * numSentiLabs);
-				if (sentiLab == numSentiLabs) sentiLab = numSentiLabs - 1;  // to avoid over array boundary
+				double temp1 = (double) rand();
+				sentiLab = (int)((temp1 / RAND_MAX) * numSentiLabs);
+				if (sentiLab == numSentiLabs) {
+					sentiLab = numSentiLabs - 1;  // to avoid over array boundary
+				}
 			}
 			l[m][t] = sentiLab;
 
@@ -1178,9 +1186,9 @@ int model::estimate1(int epoch) {
 			printf("Iteration %d ...\n", liter); // added
 
 			//printf("Saving the model at iteration %d ...\n", liter);
-			compute_pi_dl();
-			compute_theta_dlz();
-			compute_phi_lzw1();
+	//		compute_pi_dl();
+	//		compute_theta_dlz();
+	//		compute_phi_lzw1();
 			//save_model1(putils->generate_model_name(liter));
 		}
 	}
@@ -1227,6 +1235,7 @@ int model::estimate1(int epoch) {
 
 // Neue Werte für Topic und Sentilabel werden für das Wort n in Document m gesamplet
 int model::sampling(int m, int n, int& sentiLab, int& topic) {
+	srand(1234);
 	// Sentiment und Topic aus der letzten Iteration
 	sentiLab = l[m][n];
 	topic = z[m][n];
@@ -1296,6 +1305,7 @@ int model::sampling(int m, int n, int& sentiLab, int& topic) {
 // Unterschied zu sampling(...): Wir fokusieren uns auf _pdocs also die lokale Codierung
 // Es wird also nur auf den aktuellen Daten gesamplet
 int model::sampling1(int m, int n, int& sentiLab, int& topic) {
+	srand(1234);
 	// Sentiment und Topic aus der letzten Iteration
 	sentiLab = l[m][n];
 	topic = z[m][n];

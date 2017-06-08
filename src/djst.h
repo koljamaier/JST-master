@@ -157,6 +157,34 @@ public:
 		numDocs = 0;
 		vocabSize = 0;
 
+		numDocs = 0;
+		vocabSize = 0;
+		// newphi_lzw.clear();
+		newpi_dl.clear();
+		newtheta_dlz.clear();
+
+		word2atr.clear();
+		//id2word.clear();
+
+
+		new_nd.clear();
+		new_ndl.clear();
+		new_ndlz.clear();
+		new_nlzw.clear();
+		new_nlz.clear();
+		new_p.clear();
+		new_z.clear();
+		new_l.clear();
+		alpha_lz.clear();
+		alphaSum_l.clear();
+		beta_lzw.clear();
+		betaSum_lz.clear();
+		gamma_dl.clear();
+		gammaSum_d.clear();
+		lambda_lw.clear();
+		expected_counts_lzw.clear();
+		expected_counts_sum_lz.clear();
+
 		if (pnewData != NULL) {
 			delete pnewData;
 			pnewData = NULL;
