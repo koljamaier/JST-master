@@ -1031,8 +1031,6 @@ int model::init_estimate1() {
 				return 1;
 			}
 
-			string temp = id2word[pdataset->pdocs[m]->words[t]]; // added for testing purposes
-
 			if ((pdataset->_pdocs[m]->priorSentiLabels[t] > -1) && (pdataset->_pdocs[m]->priorSentiLabels[t] < numSentiLabs)) {
 				sentiLab = pdataset->_pdocs[m]->priorSentiLabels[t]; // incorporate prior information into the model
 

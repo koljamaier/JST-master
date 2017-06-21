@@ -98,7 +98,7 @@ int djst::init(int argc, char ** argv) {
 		// update the sliding window of word distributions
 		std::rotate(sliding_window_phi.begin(), sliding_window_phi.begin() + 1, sliding_window_phi.end());
 		sliding_window_phi.pop_back();
-		sliding_window_phi.push_back(newphi_lzw);
+		sliding_window_phi.push_back(newsigma_lzw);
 	}
 
     return 0;
@@ -106,8 +106,8 @@ int djst::init(int argc, char ** argv) {
 
 // Gleicht quasi init_estimate wie bei model
 int djst::init_djstestimate2() {
-	// init inf
 	// Hier initialisieren (zufällig) wir die ersten Sentiment-/Topic-Labels. Somit kann dann das "richtige" Sampling starten
+	srand(1234);
 	int sentiLab, topic;
 	new_z.resize(pnewData->numDocs);
 	new_l.resize(pnewData->numDocs);
@@ -194,7 +194,18 @@ int djst::trainNextModel(int epoch) {
 		return 1;
 	};
 	fin.close();
-	
+
+	// added; create data for pyLDAvis
+	for (int l = 0; l < numSentiLabs; l++) {
+		for (int z = 0; z < numTopics; z++) {
+			for (int r = 0; r < vocabSize; r++) {
+				term_senti_frequency[r] += new_nlzw[l][z][r];
+
+			}
+		}
+	}
+
+	save_data_pyldavis(epoch);
 	delete_model_parameters();
 
 	return 0;
@@ -234,13 +245,13 @@ int djst::djst_estimate(int epoch) {
 	}
 
 	printf("Gibbs sampling completed!\n");
-	printf("Saving the final model!\n");
+	printf("Saving the final model! for %d \n", epoch);
 	compute_newpi1();
 	compute_newtheta();
 	compute_newphi1();
 
 
-	/*vocabSize = pnewData->vocabSize;
+	vocabSize = pnewData->vocabSize;
 	expected_counts_lzw.resize(numSentiLabs);
 	for (int l = 0; l < numSentiLabs; l++) {
 		expected_counts_lzw[l].resize(numTopics);
@@ -264,7 +275,7 @@ int djst::djst_estimate(int epoch) {
 				}
 			}
 		}
-	}*/
+	}
 
 	save_model(putils->generate_model_name(-1), epoch);
 	return 0;
@@ -1049,6 +1060,11 @@ int djst::init_parameters2() {
 		}
 	}
 
+	term_senti_frequency.resize(pnewData->vocabSize);
+	for (int r = 0; r < vocabSize; r++) {
+		term_senti_frequency[r] = 0;
+	}
+
 	new_nlz.resize(numSentiLabs);
 	for (int l = 0; l < numSentiLabs; l++) {
 		new_nlz[l].resize(numTopics);
@@ -1290,7 +1306,6 @@ int djst::save_model_newtheta_dlz(string filename) {
 }
 
 
-
 int djst::save_model_newphi_lzw(string filename) {
 
 	FILE * fout = fopen(filename.c_str(), "w");
@@ -1312,6 +1327,106 @@ int djst::save_model_newphi_lzw(string filename) {
     fclose(fout);    
 	return 0;
 }
+
+
+int djst::save_data_pyldavis(int epoch) {
+	if (save_vocab_term_frequency(epoch))
+		return 1;
+
+	if (save_doc_lengths(epoch))
+		return 1;
+
+	if (save_topic_term_dists_phi(epoch))
+		return 1;
+
+	if (save_doc_topic_dists_theta(epoch))
+		return 1;
+
+	return 0;
+
+}
+
+int djst::save_vocab_term_frequency(int epoch) {
+	string filename = result_dir + to_string(epoch) + "vocab_term_frequency.txt";
+	FILE * fout = fopen(filename.c_str(), "w");
+	if (!fout) {
+		printf("Cannot save file %s!\n", filename.c_str());
+		return 1;
+	}
+
+	//fprintf(fout, "%s %d %.15f\n", id2word[r].c_str(), term_senti_frequency1[r], phi_lzw[l][z][r]);
+	for (int r = 0; r < vocabSize; r++) {
+		fprintf(fout, "%s %d\n", id2word[r].c_str(), term_senti_frequency[r]);
+	}
+	fclose(fout);
+
+	return 0;
+}
+
+int djst::save_topic_term_dists_phi(int epoch) {
+	string filename1 = result_dir + to_string(epoch) + "topic_term_dists_phi.txt";
+	FILE * fout1 = fopen(filename1.c_str(), "w");
+	if (!fout1) {
+		printf("Cannot save file %s!\n", filename1.c_str());
+		return 1;
+	}
+
+	for (int l = 0; l < numSentiLabs; l++) {
+		for (int z = 0; z < numTopics; z++) {
+			//fprintf(fout1, "Label:%d  Topic:%d\n", l, z);
+			for (int r = 0; r < vocabSize; r++) {
+				fprintf(fout1, "%.15f ", newphi_lzw[l][z][r]);
+			}
+			fprintf(fout1, "\n");
+		}
+	}
+	fclose(fout1);
+
+	return 0;
+}
+
+int djst::save_doc_lengths(int epoch) {
+	string filename2 = result_dir + to_string(epoch) + "doc_lengths.txt";
+	FILE * fout2 = fopen(filename2.c_str(), "w");
+	if (!fout2) {
+		printf("Cannot save file %s!\n", filename2.c_str());
+		return 1;
+	}
+
+	for (int m = 0; m < pnewData->numDocs; m++) {
+		fprintf(fout2, "%d ", pnewData->pdocs[m]->length);
+	}
+	fprintf(fout2, "\n");
+	fclose(fout2);
+
+	return 0;
+}
+
+int djst::save_doc_topic_dists_theta(int epoch) {
+	string filename3 = result_dir + to_string(epoch)+ "doc_topic_dists_theta.txt";
+	FILE * fout3 = fopen(filename3.c_str(), "w");
+	if (!fout3) {
+		printf("Cannot save file %s!\n", filename3.c_str());
+		return 1;
+	}
+
+	for (int m = 0; m < numDocs; m++) {
+		//fprintf(fout3, "Document %d\n", m);
+		for (int l = 0; l < numSentiLabs; l++) {
+			for (int z = 0; z < numTopics; z++) {
+				fprintf(fout3, "%f ", newtheta_dlz[m][l][z]);
+			}
+		}
+		fprintf(fout3, "\n");
+	}
+
+	fclose(fout3);
+
+	return 0;
+}
+
+
+/*----------------------*/
 
 
 int djst::save_model_newothers(string filename) {
@@ -1364,7 +1479,7 @@ int djst::save_model_newothers1(string filename) {
 	fprintf(fout, "savestep-djst=%d\n", savestep);
 
 	fprintf(fout, "\n------------------ Testset ** %s ** statistics ----------------------\n", datasetFile.c_str());
-	fprintf(fout, "newNumDocs=%d\n", pnewData->numDocs);
+	fprintf(fout, "numDocs=%d\n", pnewData->numDocs);
 	fprintf(fout, "newCorpusSize=%d\n", pnewData->corpusSize);
 	fprintf(fout, "newVocabSize=%d\n", pnewData->vocabSize);
 	fprintf(fout, "numNewWords=%d\n", (int)(pnewData->newWords.size()));

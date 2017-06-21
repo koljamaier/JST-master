@@ -117,6 +117,8 @@ public:
 	vector<vector<vector<int> > > new_nlzw; // counter for individual word-to-topic-sentiment assignment (wie oft taucht Wort w mit diesem topic&sentiment auf)
 	vector<vector<int> > new_nlz; // counter for sentilabels per topic
 
+	vector<int > term_senti_frequency; // added; holds the sum of occurrences for every term over all sentiments and topics in the corpus
+
 	// hyperparameters 
     vector<vector<double> > alpha_lz; // size: (L x T)
 	vector<double> alphaSum_l; 
@@ -138,7 +140,7 @@ public:
 	vector<vector<double> > expected_counts_sum_lz; // added;
 
 	vector<vector<vector<vector<double> > > > sliding_window_phi; // added; size: (time_slices x L x T x V)
-	double window_weights[3] = { 0.2, 0.3, 0.5}; // added; das ist der µ-Parameter für die Zeitfenster-Gewichtung
+	double window_weights[3] = { 0.5, 1.5, 2.3}; // added; das ist der µ-Parameter für die Zeitfenster-Gewichtung
 
 	// functions 
 	int init(int argc, char ** argv);
@@ -236,6 +238,18 @@ public:
 	int save_model_newothers1(string filename); // added
     int save_model_newtwords(string filename);
 	int save_model_newtwords1(string filename); // added
+
+	// added; methods for pyLDAvis data generation
+	int save_data_pyldavis(int epoch);
+
+	int save_vocab_term_frequency(int epoch);
+	int save_topic_term_dists_phi(int epoch);
+	int save_doc_lengths(int epoch);
+	int save_doc_topic_dists_theta(int epoch);
+
+
+
+
 
 	private:
 		ifstream fin;
