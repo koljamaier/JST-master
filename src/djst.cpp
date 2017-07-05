@@ -92,7 +92,7 @@ int djst::init(int argc, char ** argv) {
 	//delete firstModel;
 
 	// train djst model (taking old models into account) as long as new data is available
-	for (size_t epoch = time_slices+1; epoch < 6; epoch++) {
+	for (size_t epoch = time_slices+1; epoch < 101; epoch++) {
 		newsigma_lzw.clear();
 		trainNextModel(epoch);
 		// update the sliding window of word distributions
@@ -200,8 +200,21 @@ int djst::trainNextModel(int epoch) {
 		for (int z = 0; z < numTopics; z++) {
 			for (int r = 0; r < vocabSize; r++) {
 				term_senti_frequency[r] += new_nlzw[l][z][r];
-
 			}
+		}
+	}
+
+	int fixed_senti = 1;
+	for (int z = 0; z < numTopics; z++) {
+		for (int r = 0; r < vocabSize; r++) {
+			term_senti_frequency_pos[r] += new_nlzw[fixed_senti][z][r];
+		}
+	}
+
+	fixed_senti = 2;
+	for (int z = 0; z < numTopics; z++) {
+		for (int r = 0; r < vocabSize; r++) {
+			term_senti_frequency_neg[r] += new_nlzw[fixed_senti][z][r];
 		}
 	}
 
@@ -228,7 +241,7 @@ int djst::djst_estimate(int epoch) {
 				new_z[m][n] = topic;
 			}
 		}
-
+		
 		if (updateParaStep > 0 && liter % updateParaStep == 0) {
 			this->update_Parameters();
 		}
@@ -1065,6 +1078,16 @@ int djst::init_parameters2() {
 		term_senti_frequency[r] = 0;
 	}
 
+	term_senti_frequency_pos.resize(pnewData->vocabSize);
+	for (int r = 0; r < vocabSize; r++) {
+		term_senti_frequency_pos[r] = 0;
+	}
+
+	term_senti_frequency_neg.resize(pnewData->vocabSize);
+	for (int r = 0; r < vocabSize; r++) {
+		term_senti_frequency_neg[r] = 0;
+	}
+
 	new_nlz.resize(numSentiLabs);
 	for (int l = 0; l < numSentiLabs; l++) {
 		new_nlz[l].resize(numTopics);
@@ -1360,6 +1383,32 @@ int djst::save_vocab_term_frequency(int epoch) {
 	}
 	fclose(fout);
 
+	filename = result_dir + to_string(epoch) + "vocab_term_frequency1.txt";
+	fout = fopen(filename.c_str(), "w");
+	if (!fout) {
+		printf("Cannot save file %s!\n", filename.c_str());
+		return 1;
+	}
+
+	//fprintf(fout, "%s %d %.15f\n", id2word[r].c_str(), term_senti_frequency1[r], phi_lzw[l][z][r]);
+	for (int r = 0; r < vocabSize; r++) {
+		fprintf(fout, "%s %d\n", id2word[r].c_str(), term_senti_frequency_pos[r]);
+	}
+	fclose(fout);
+
+	filename = result_dir + to_string(epoch) + "vocab_term_frequency2.txt";
+	fout = fopen(filename.c_str(), "w");
+	if (!fout) {
+		printf("Cannot save file %s!\n", filename.c_str());
+		return 1;
+	}
+
+	//fprintf(fout, "%s %d %.15f\n", id2word[r].c_str(), term_senti_frequency1[r], phi_lzw[l][z][r]);
+	for (int r = 0; r < vocabSize; r++) {
+		fprintf(fout, "%s %d\n", id2word[r].c_str(), term_senti_frequency_neg[r]);
+	}
+	fclose(fout);
+
 	return 0;
 }
 
@@ -1379,6 +1428,40 @@ int djst::save_topic_term_dists_phi(int epoch) {
 			}
 			fprintf(fout1, "\n");
 		}
+	}
+	fclose(fout1);
+
+
+	filename1 = result_dir + to_string(epoch) + "topic_term_dists_phi1.txt";
+	fout1 = fopen(filename1.c_str(), "w");
+	if (!fout1) {
+		printf("Cannot save file %s!\n", filename1.c_str());
+		return 1;
+	}
+	int fixed_senti = 1;
+	for (int z = 0; z < numTopics; z++) {
+		//fprintf(fout1, "Label:%d  Topic:%d\n", fixed_senti, z);
+		for (int r = 0; r < vocabSize; r++) {
+			fprintf(fout1, "%.15f ", newphi_lzw[fixed_senti][z][r]);
+		}
+		fprintf(fout1, "\n");
+	}
+	fclose(fout1);
+
+
+	filename1 = result_dir + to_string(epoch) + "topic_term_dists_phi2.txt";
+	fout1 = fopen(filename1.c_str(), "w");
+	if (!fout1) {
+		printf("Cannot save file %s!\n", filename1.c_str());
+		return 1;
+	}
+	fixed_senti = 2;
+	for (int z = 0; z < numTopics; z++) {
+		//fprintf(fout1, "Label:%d  Topic:%d\n", fixed_senti, z);
+		for (int r = 0; r < vocabSize; r++) {
+			fprintf(fout1, "%.15f ", newphi_lzw[fixed_senti][z][r]);
+		}
+		fprintf(fout1, "\n");
 	}
 	fclose(fout1);
 
@@ -1419,14 +1502,44 @@ int djst::save_doc_topic_dists_theta(int epoch) {
 		}
 		fprintf(fout3, "\n");
 	}
+	fclose(fout3);
+
+	filename3 = result_dir + to_string(epoch) + "doc_topic_dists_theta1.txt";
+	fout3 = fopen(filename3.c_str(), "w");
+	if (!fout3) {
+		printf("Cannot save file %s!\n", filename3.c_str());
+		return 1;
+	}
+	int fixed_senti = 1;
+	for (int m = 0; m < numDocs; m++) {
+		//fprintf(fout3, "Document %d\n", m);
+		for (int z = 0; z < numTopics; z++) {
+			fprintf(fout3, "%f ", newtheta_dlz[m][fixed_senti][z]);
+		}
+		fprintf(fout3, "\n");
+	}
+
+	fclose(fout3);
+
+	filename3 = result_dir + to_string(epoch) + "doc_topic_dists_theta2.txt";
+	fout3 = fopen(filename3.c_str(), "w");
+	if (!fout3) {
+		printf("Cannot save file %s!\n", filename3.c_str());
+		return 1;
+	}
+	fixed_senti = 2;
+	for (int m = 0; m < numDocs; m++) {
+		//fprintf(fout3, "Document %d\n", m);
+		for (int z = 0; z < numTopics; z++) {
+			fprintf(fout3, "%f ", newtheta_dlz[m][fixed_senti][z]);
+		}
+		fprintf(fout3, "\n");
+	}
 
 	fclose(fout3);
 
 	return 0;
 }
-
-
-/*----------------------*/
 
 
 int djst::save_model_newothers(string filename) {

@@ -118,6 +118,8 @@ public:
 	vector<vector<int> > new_nlz; // counter for sentilabels per topic
 
 	vector<int > term_senti_frequency; // added; holds the sum of occurrences for every term over all sentiments and topics in the corpus
+	vector<int > term_senti_frequency_pos; // added; holds the sum of occurrences for every term with a positive sentiment over all topics in the corpus
+	vector<int > term_senti_frequency_neg; // added; holds the sum of occurrences for every term with a negative sentiment over all topics in the corpus
 
 	// hyperparameters 
     vector<vector<double> > alpha_lz; // size: (L x T)
@@ -140,7 +142,7 @@ public:
 	vector<vector<double> > expected_counts_sum_lz; // added;
 
 	vector<vector<vector<vector<double> > > > sliding_window_phi; // added; size: (time_slices x L x T x V)
-	double window_weights[3] = { 0.5, 1.5, 2.3}; // added; das ist der µ-Parameter für die Zeitfenster-Gewichtung
+	double window_weights[3] = { 0.1, 0.2, 0.7}; // added; das ist der µ-Parameter für die Zeitfenster-Gewichtung
 
 	// functions 
 	int init(int argc, char ** argv);

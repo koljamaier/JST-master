@@ -191,9 +191,9 @@ int model::execute_model() {
 	}
 				
 	// read training data
-	fin.open((data_dir+"all_jst.dat").c_str(), ifstream::in);
+	fin.open((data_dir+"summary.dat").c_str(), ifstream::in);
 	if(!fin) {
-	    printf("Error! Cannot read dataset %s!\n", (data_dir+"all_jst.dat").c_str());
+	    printf("Error! Cannot read dataset %s!\n", (data_dir+"summary.dat").c_str());
 	    return 1;
 	}
 	//word2atr.clear(); // added
@@ -965,6 +965,7 @@ int model::init_estimate() {
 
     int sentiLab, topic;
 	//srand(time(0)); // initialize for random number generation
+	srand(1234);
 
 	z.resize(numDocs);
 	l.resize(numDocs);
@@ -1017,6 +1018,7 @@ int model::init_estimate1() {
 	int sentiLab, topic = 0;
 	//srand(time(0)); // initialize for random number generation
 	//srand(time(NULL));
+	srand(1234);
 	z.resize(numDocs);
 	l.resize(numDocs);
 
