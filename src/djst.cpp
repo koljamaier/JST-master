@@ -92,7 +92,7 @@ int djst::init(int argc, char ** argv) {
 	//delete firstModel;
 
 	// train djst model (taking old models into account) as long as new data is available
-	for (size_t epoch = time_slices+1; epoch < 101; epoch++) {
+	for (size_t epoch = time_slices+1; epoch < 7; epoch++) {
 		newsigma_lzw.clear();
 		trainNextModel(epoch);
 		// update the sliding window of word distributions
@@ -194,6 +194,37 @@ int djst::trainNextModel(int epoch) {
 		return 1;
 	};
 	fin.close();
+
+	//calculate perplexity
+	if (epoch==10000)
+	{
+		printf("Calculating perplexity!\n");
+
+		double log_prob_document_sum = 0;
+		double doc_length_sum = 0;
+		vector <double> prob_document_sum;
+		prob_document_sum.resize(pnewData->numDocs);
+
+		for (int m = 0; m < pnewData->numDocs; m++) {
+			doc_length_sum += pnewData->pdocs[m]->length;
+			for (int n = 0; n < pnewData->pdocs[m]->length; n++) {
+				for (int l = 0; l < numSentiLabs; l++) {
+					for (int z = 0; z < numTopics; z++) {
+						prob_document_sum[m] += newphi_lzw[l][z][n];
+					}
+				}
+			}
+			log_prob_document_sum += log10(prob_document_sum[m]);
+		}
+
+
+		double perplexity = exp(-(log_prob_document_sum / doc_length_sum));
+
+		double test = log10f(0.001);
+		printf("Perplexity: %f \n", perplexity);
+		printf("Test: %f \n", test);
+		printf("Likelihood: %f \n", log_prob_document_sum);
+	}
 
 	// added; create data for pyLDAvis
 	for (int l = 0; l < numSentiLabs; l++) {
@@ -1810,7 +1841,8 @@ int djst::update_Parameters() {
 	for (int j = 0; j < numSentiLabs; j++) {
 		for (int k = 0; k < numTopics; k++) {
 			for (int m = 0; m < numDocs; m++) {
-				data[k][m] = new_ndlz[m][j][k]; // ntldsum[j][k][m];
+				//data[k][m] = new_ndlz[m][j][k]; // ntldsum[j][k][m];
+				data[k][m] += new_ndlz[m][j][k];
 			}
 		}
 

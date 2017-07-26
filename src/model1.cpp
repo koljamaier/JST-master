@@ -1391,7 +1391,8 @@ int model::update_Parameters() {
 	for (int j = 0; j < numSentiLabs; j++) {
 		for (int k = 0; k < numTopics; k++) {
 			for (int m = 0; m < numDocs; m++) {
-				data[k][m] = ndlz[m][j][k]; // ntldsum[j][k][m];
+				//data[k][m] = ndlz[m][j][k]; // ntldsum[j][k][m];
+				data[k][m] = data[k][m] + ndlz[m][j][k]; // ntldsum[j][k][m];
 			}
 		}
 
