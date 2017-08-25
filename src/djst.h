@@ -142,7 +142,7 @@ public:
 	vector<vector<double> > expected_counts_sum_lz; // added;
 
 	vector<vector<vector<vector<double> > > > sliding_window_phi; // added; size: (time_slices x L x T x V)
-	double window_weights[3] = { 0.1, 0.2, 0.7}; // added; das ist der µ-Parameter für die Zeitfenster-Gewichtung
+	double window_weights[3] = { 0.2, 0.3, 0.6}; // added; das ist der µ-Parameter für die Zeitfenster-Gewichtung
 
 	// functions 
 	int init(int argc, char ** argv);
@@ -152,6 +152,7 @@ public:
 	int init_parameters2(); // added
 	int init_djstestimate2(); // added
 	int djst_estimate(int epoch); // added
+	int calc_perplexity(); // added
 	int djst_sampling(int m, int n, int& sentiLab, int& topic); // added
 	int update_Parameters(); // added
 	void compute_newpi1(); // added; incorporates the new gamma

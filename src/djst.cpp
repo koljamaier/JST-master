@@ -92,22 +92,30 @@ int djst::init(int argc, char ** argv) {
 	//delete firstModel;
 
 	// train djst model (taking old models into account) as long as new data is available
-	for (size_t epoch = time_slices+1; epoch < 7; epoch++) {
+	for (size_t epoch = time_slices+1; epoch < 9; epoch++) {
+		//calculate perplexity
 		newsigma_lzw.clear();
+		newphi_lzw.clear();
 		trainNextModel(epoch);
 		// update the sliding window of word distributions
 		std::rotate(sliding_window_phi.begin(), sliding_window_phi.begin() + 1, sliding_window_phi.end());
 		sliding_window_phi.pop_back();
 		sliding_window_phi.push_back(newsigma_lzw);
+		if (epoch == 6)
+		{
+			//calc_perplexity();
+		}
 	}
 
+	printf("Procedure successfully completed\n");
     return 0;
 }
 
 // Gleicht quasi init_estimate wie bei model
 int djst::init_djstestimate2() {
 	// Hier initialisieren (zufällig) wir die ersten Sentiment-/Topic-Labels. Somit kann dann das "richtige" Sampling starten
-	srand(1234);
+	//srand(1234);
+	srand(time(0));
 	int sentiLab, topic;
 	new_z.resize(pnewData->numDocs);
 	new_l.resize(pnewData->numDocs);
@@ -195,36 +203,77 @@ int djst::trainNextModel(int epoch) {
 	};
 	fin.close();
 
-	//calculate perplexity
-	if (epoch==10000)
+	// editiere 5.dat
+	//if (epoch == 13) {
+	//	calc_perplexity();
+	//}
+
+	if (epoch == 8)
 	{
 		printf("Calculating perplexity!\n");
 
-		double log_prob_document_sum = 0;
-		double doc_length_sum = 0;
-		vector <double> prob_document_sum;
-		prob_document_sum.resize(pnewData->numDocs);
+		//double log_prob_document_sum = 0;
+		//double doc_length_sum = 0;
+		//vector <double> prob_document_sum;
+		//prob_document_sum.resize(pnewData->numDocs);
 
-		for (int m = 0; m < pnewData->numDocs; m++) {
-			doc_length_sum += pnewData->pdocs[m]->length;
-			for (int n = 0; n < pnewData->pdocs[m]->length; n++) {
-				for (int l = 0; l < numSentiLabs; l++) {
-					for (int z = 0; z < numTopics; z++) {
-						prob_document_sum[m] += newphi_lzw[l][z][n];
-					}
-				}
+		//for (int m = 0; m < pnewData->numDocs; m++) {
+		//	doc_length_sum += pnewData->pdocs[m]->length;
+		//	for (int n = 0; n < pnewData->pdocs[m]->length; n++) {
+		//		for (int l = 0; l < numSentiLabs; l++) {
+		//			for (int z = 0; z < numTopics; z++) {
+		//				// Die Worte einzeln schon hier loggen!
+		//				prob_document_sum[m] += newphi_lzw[l][z][n];
+		//			}
+		//		}
+		//	}
+		//	log_prob_document_sum += log10(prob_document_sum[m]);
+		//}
+
+
+		//double perplexity = exp(-(log_prob_document_sum / doc_length_sum));
+
+		//double test = log10f(0.001);
+		//printf("Perplexity: %f \n", perplexity);
+		//printf("Test: %f \n", test);
+		//printf("Likelihood: %f \n", log_prob_document_sum);
+
+		pnewData = new dataset(result_dir, model_dir);
+
+		if (sentiLexFile != "") {
+			if (pnewData->read_senti_lexicon((sentiLexFile).c_str())) {
+				printf("Error! Cannot read sentiFile %s!\n", (sentiLexFile).c_str());
+				delete pnewData;
+				return 1;
 			}
-			log_prob_document_sum += log10(prob_document_sum[m]);
+			this->sentiLex = pnewData->sentiLex;
+		}
+		fin.open((data_dir + "perp.dat").c_str(), ifstream::in);
+		if (!fin) {
+			printf("Error! Cannot read dataset %s!\n", (data_dir + "perp.dat").c_str());
+			return 1;
 		}
 
+		if (pnewData->read_dataStream1(fin)) {
+			printf("Throw exception in function read_dataStream1()! \n");
+			delete pnewData;
+			return 1;
+		}
 
-		double perplexity = exp(-(log_prob_document_sum / doc_length_sum));
+		word2atr = pnewData->word2atr; // "access {2984, sentiLabel}" glob. Voc
+		id2word = pnewData->id2word; // "2984 access" glob. Voc
+		numDocs = pnewData->numDocs;
 
-		double test = log10f(0.001);
-		printf("Perplexity: %f \n", perplexity);
-		printf("Test: %f \n", test);
-		printf("Likelihood: %f \n", log_prob_document_sum);
+		/* print example doc
+		for (size_t i = 0; i < pnewData->pdocs[1]->length; i++)
+		{
+			printf(id2word[pnewData->pdocs[1]->words[i]].c_str());
+		}*/
+
+		calc_perplexity();
+		fin.close();
 	}
+	
 
 	// added; create data for pyLDAvis
 	for (int l = 0; l < numSentiLabs; l++) {
@@ -255,6 +304,67 @@ int djst::trainNextModel(int epoch) {
 	return 0;
 }
 
+int djst::calc_perplexity() {
+// Achtung: Nullpointer, wenn perp.dat mehr Dokumente enthält, als der Theta-Parameter des letzten Zeitschlitzes
+// Achtung: Wenn See time(0) gesetzt ist, dann schwankt die perp. mitunter sehr
+	printf("Calculating perplexity!\n");
+
+	for (int l = 0; l < numSentiLabs; l++) {
+		for (int z = 0; z < numTopics; z++) {
+			for (int r = 0; r < vocabSize; r++) {
+				term_senti_frequency[r] += new_nlzw[l][z][r];
+			}
+		}
+	}
+
+
+	int word_counter = 0;
+	double log_prob_document_sum = 0;
+	double doc_length_sum = 0;
+	vector <double> prob_document_sum;
+	double prob_document_sum1 = 0;
+	prob_document_sum.resize(pnewData->numDocs);
+
+	for (int m = 0; m < pnewData->numDocs; m++) {
+		doc_length_sum += pnewData->pdocs[m]->length;
+		prob_document_sum1 = 0;
+		for (int n = 0; n < pnewData->pdocs[m]->length; n++) {
+			word_counter += term_senti_frequency[pnewData->pdocs[m]->words[n]]; // Häufigkeit jeden Wortes das in Dok m vorkommt
+			for (int l = 0; l < numSentiLabs; l++) {
+				for (int z = 0; z < numTopics; z++) {
+					// Die Worte einzeln schon hier loggen!
+					//prob_document_sum[m] += newphi_lzw[l][z][n]*newpi_dl[m][l] * newtheta_dlz[m][l][z]; // Die counts stehen quasi schon implizit bei!
+					prob_document_sum1 += newphi_lzw[l][z][n];//*newpi_dl[m][l]*newtheta_dlz[m][l][z];
+					//prob_document_sum[m] += log10(newphi_lzw[l][z][n]);
+					printf("Prob für Wort: %s %f \n", id2word[pnewData->pdocs[m]->words[n]].c_str(),prob_document_sum1);
+					//printf("Phi %f\n Pi %f\n Theta %f\n", newphi_lzw[l][z][n], newpi_dl[m][l], newtheta_dlz[m][l][z]);
+					printf("Phi %f\n", newphi_lzw[l][z][n]);
+				}
+			}
+		}
+		log_prob_document_sum += log(prob_document_sum1); // ... += wrd_counter * log(prob_document_sum[m])
+		//log_prob_document_sum += prob_document_sum[m];
+		printf("Log prob for one Doc: %f \n", log_prob_document_sum);
+		printf("Corpus length: %f \n", doc_length_sum);
+		double x = 0.000267;
+		double y = 0.655914;
+		double z = 0.932857;
+		printf("Testzahl %f \n", x*y*z);
+	}
+
+
+	double perplexity = exp(-(log_prob_document_sum / doc_length_sum));
+
+	double test = log10f(0.001);
+	printf("Perplexity: %f \n", perplexity);
+	printf("Test: %f \n", test);
+	test = log(0.001);
+	printf("Test: %f \n", test);
+	printf("Likelihood: %f \n", log_prob_document_sum);
+
+	return 0;
+}
+
 
 // Hier geschieht viel bzgl. der Berechnung (bzw. hier werden alle wichtigen Funktionen dafür gecallt)
 // Das Modell wird auf die Daten trainiert (Parameter Phi,... werden estimated)
@@ -263,6 +373,7 @@ int djst::djst_estimate(int epoch) {
 	printf("Sampling %d iterations!\n", niters);
 
 	for (liter = 1; liter <= niters; liter++) {
+		// Am ende einer Iteration erhalten wir ein sample für vec(z) und vec(w). Daraus müssen wir dann alle Parameter updaten
 		for (int m = 0; m < numDocs; m++) {
 			for (int n = 0; n < pnewData->pdocs[m]->length; n++) {
 				// Hier werden auch die counts geupdatet (wie z.B. nlzw)
@@ -281,9 +392,9 @@ int djst::djst_estimate(int epoch) {
 			if (liter == niters) break;
 			printf("Iteration %d ...\n", liter); // added
 
-		//	compute_newpi1();
-		//	compute_newtheta();
-		//	compute_newphi1();
+			compute_newpi1();
+			compute_newtheta();
+			compute_newphi1();
 			//save_model1(putils->generate_model_name(liter));
 		}
 	}
@@ -331,7 +442,8 @@ int djst::djst_estimate(int epoch) {
 // (Später wird auch das globale Vokabular betrachtet; fürs Sampling selbst werden aber nur die lokalen betrachtet)
 // Achtung: Wir gehen hier mit dem lokalen Vokabular rein. Deshalb failt es!
 int djst::djst_sampling(int m, int n, int& sentiLab, int& topic) {
-	srand(1234);
+	//srand(1234);
+	srand(time(0));
 	sentiLab = new_l[m][n];
 	topic = new_z[m][n];
 
@@ -1206,6 +1318,7 @@ int djst::init_parameters2() {
 		}
 	}
 
+	/*
 	//beta
 	if (_beta <= 0) {
 		_beta = 0.01;
@@ -1220,6 +1333,26 @@ int djst::init_parameters2() {
 			for (int r = 0; r < pnewData->vocabSize; r++) {
 				beta_lzw[l][z][r] = _beta;
 				betaSum_lz[l][z] += beta_lzw[l][z][r];
+			}
+		}
+	}
+	*/
+
+	if (_beta <= 0) {
+		_beta = 0.01;
+	}
+	beta_lzw.resize(numSentiLabs);
+	betaSum_lz.resize(numSentiLabs);
+	for (int l = 0; l < numSentiLabs; l++) {
+		beta_lzw[l].resize(numTopics);
+		betaSum_lz[l].resize(numTopics);
+		for (int z = 0; z < numTopics; z++) {
+			beta_lzw[l][z].resize(pnewData->vocabSize);
+			for (int r = 0; r < pnewData->vocabSize; r++) {
+				if (beta_lzw[l][z][r] == 0) {
+					beta_lzw[l][z][r] = _beta;
+					betaSum_lz[l][z] += beta_lzw[l][z][r];
+				}
 			}
 		}
 	}
@@ -1313,7 +1446,6 @@ void djst::compute_newphi1() {
 		}
 	}
 }
-
 
 int djst::save_model_newpi_dl(string filename) {
 
@@ -1804,14 +1936,25 @@ int djst::prior2beta2() {
 			for (int r = 0; r < pnewData->vocabSize; r++) {
 				// sentiIt = sentiLex.find(id2word[r]); // check wether word r is sentiment bearing (in mpqa)
 				if (std::find(pnewData->newWords1.begin(), pnewData->newWords1.end(), r) != pnewData->newWords1.end() /*|| sentiIt != sentiLex.end()*/) { // check if glob. word r was new
+					// Gewicht der neuen Worte
 					beta_lzw[l][z][r] = beta_lzw[l][z][r] * lambda_lw[l][r]; // if the word is new we only incorporate standard prior (lambda) information from mpqa
+					printf("Neues Wort: %s\n",id2word[r].c_str());
 				}
 				else { // word isn't new and also no sentiment-bearing word
 					// Rechenvorschrift für dJST (Update-Regel Sliding Window)
 					for (size_t i = 0; i < sliding_window_phi.size(); i++) {
+						// Das Gewicht der alten/bekannten Worte
+						printf("Alter Beta lzw wert: %f für Wort %s\n", beta_lzw[l][z][r], id2word[r].c_str());
+						printf("Phi und Mu: %f %f\n", sliding_window_phi[i][l][z][r], window_weights[i]);
 						beta_lzw[l][z][r] += sliding_window_phi[i][l][z][r] * window_weights[i];
+						printf("Aktualisierter Beta lzw wert: %f für Wort %s\n\n", beta_lzw[l][z][r], id2word[r].c_str());
 					}
+					if (beta_lzw[l][z][r] > 0.01) {
+						beta_lzw[l][z][r] -= 0.01;
+					}
+					
 				}
+				//printf("Beta lzw wert: %f für Wort %s\n", beta_lzw[l][z][r], id2word[r].c_str());
 				betaSum_lz[l][z] += beta_lzw[l][z][r];
 			}
 		}
@@ -1841,8 +1984,8 @@ int djst::update_Parameters() {
 	for (int j = 0; j < numSentiLabs; j++) {
 		for (int k = 0; k < numTopics; k++) {
 			for (int m = 0; m < numDocs; m++) {
-				//data[k][m] = new_ndlz[m][j][k]; // ntldsum[j][k][m];
-				data[k][m] += new_ndlz[m][j][k];
+				data[k][m] = new_ndlz[m][j][k]; // ntldsum[j][k][m];
+				//data[k][m] += new_ndlz[m][j][k]+1; //evtl das einrücken
 			}
 		}
 
@@ -1859,6 +2002,25 @@ int djst::update_Parameters() {
 			alphaSum_l[j] += alpha_lz[j][k];
 		}
 	}
+
+	// update beta; bei uns nicht nötig, denn µ ist festgesetzt!
+	/*for (int l = 0; l < numSentiLabs; l++) {
+		for (int z = 0; z < numTopics; z++) {
+			// TODO was passiert wenn folgende Zeile auskommentiert wird?
+			betaSum_lz[l][z] = 0.0;
+		}
+	}
+	// Statt sliding window hier das direkte phi benutzen?
+	for (int l = 0; l < numSentiLabs; l++) {
+		for (int z = 0; z < numTopics; z++) {
+			for (int r = 0; r < pnewData->vocabSize; r++) {
+					for (size_t i = 0; i < sliding_window_phi.size(); i++) {
+						beta_lzw[l][z][r] += sliding_window_phi[i][l][z][r] * window_weights[i];
+						betaSum_lz[l][z] += beta_lzw[l][z][r];
+					}
+			}
+		}
+	}*/
 
 	return 0;
 }

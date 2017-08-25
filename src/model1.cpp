@@ -964,8 +964,8 @@ int model::save_model_others(string filename) {
 int model::init_estimate() {
 
     int sentiLab, topic;
-	//srand(time(0)); // initialize for random number generation
-	srand(1234);
+	srand(time(0)); // initialize for random number generation
+	//srand(1234);
 
 	z.resize(numDocs);
 	l.resize(numDocs);
@@ -1016,9 +1016,9 @@ int model::init_estimate1() {
 	numDocs = pdataset->numDocs;
 
 	int sentiLab, topic = 0;
-	//srand(time(0)); // initialize for random number generation
+	srand(time(0)); // initialize for random number generation
 	//srand(time(NULL));
-	srand(1234);
+	//srand(1234);
 	z.resize(numDocs);
 	l.resize(numDocs);
 
@@ -1235,7 +1235,8 @@ int model::estimate1(int epoch) {
 
 // Neue Werte für Topic und Sentilabel werden für das Wort n in Document m gesamplet
 int model::sampling(int m, int n, int& sentiLab, int& topic) {
-	srand(1234);
+	//srand(1234);
+	srand(time(0));
 	// Sentiment und Topic aus der letzten Iteration
 	sentiLab = l[m][n];
 	topic = z[m][n];
@@ -1305,7 +1306,8 @@ int model::sampling(int m, int n, int& sentiLab, int& topic) {
 // Unterschied zu sampling(...): Wir fokusieren uns auf _pdocs also die lokale Codierung
 // Es wird also nur auf den aktuellen Daten gesamplet
 int model::sampling1(int m, int n, int& sentiLab, int& topic) {
-	srand(1234);
+	//srand(1234);
+	srand(time(0));
 	// Sentiment und Topic aus der letzten Iteration
 	sentiLab = l[m][n];
 	topic = z[m][n];
@@ -1392,7 +1394,8 @@ int model::update_Parameters() {
 		for (int k = 0; k < numTopics; k++) {
 			for (int m = 0; m < numDocs; m++) {
 				//data[k][m] = ndlz[m][j][k]; // ntldsum[j][k][m];
-				data[k][m] = data[k][m] + ndlz[m][j][k]; // ntldsum[j][k][m];
+				//data[k][m] = data[k][m] + ndlz[m][j][k]; before // ntldsum[j][k][m];
+				data[k][m] = ndlz[m][j][k] + 1; // from djst
 			}
 		}
 
