@@ -120,6 +120,7 @@ public:
 	vector<int > term_senti_frequency; // added; holds the sum of occurrences for every term over all sentiments and topics in the corpus
 	vector<int > term_senti_frequency_pos; // added; holds the sum of occurrences for every term with a positive sentiment over all topics in the corpus
 	vector<int > term_senti_frequency_neg; // added; holds the sum of occurrences for every term with a negative sentiment over all topics in the corpus
+	vector<int > term_senti_frequency_neutr;
 
 	// hyperparameters 
     vector<vector<double> > alpha_lz; // size: (L x T)
@@ -142,7 +143,8 @@ public:
 	vector<vector<double> > expected_counts_sum_lz; // added;
 
 	vector<vector<vector<vector<double> > > > sliding_window_phi; // added; size: (time_slices x L x T x V)
-	double window_weights[3] = { 0.2, 0.3, 0.6}; // added; das ist der µ-Parameter für die Zeitfenster-Gewichtung
+	double window_weights[3] = { 0.2, 0.3, 0.6 }; // added; das ist der µ-Parameter für die Zeitfenster-Gewichtung; 0.2, 0.3, 0.6 entspricht exp-Gewichtung
+	bool set_rand = false;
 
 	// functions 
 	int init(int argc, char ** argv);
@@ -153,6 +155,8 @@ public:
 	int init_djstestimate2(); // added
 	int djst_estimate(int epoch); // added
 	int calc_perplexity(); // added
+	double train_perplexity(); // added
+	// double * p;	// temp variable for perplexity sampling
 	int djst_sampling(int m, int n, int& sentiLab, int& topic); // added
 	int update_Parameters(); // added
 	void compute_newpi1(); // added; incorporates the new gamma

@@ -110,7 +110,7 @@ int polya_fit_simple(int ** data, double * alpha, int _K, int _nSample) {
 
 		// check whether to terminate the whole iteration
 		if(sat_state) {
-			cout<<"Terminated at iteration: "<<i<<endl;
+			//cout<<"Terminated at iteration: "<<i<<endl;
 			break;
 		}
 		else if (i == polya_iter - 1);//cout<<"Haven't converged! Terminated at iteration: "<<i+1<<endl;
